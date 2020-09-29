@@ -1,6 +1,10 @@
 package com.bgsoftware.superiorskyblock.missions;
 
 import com.bgsoftware.superiorskyblock.api.SuperiorSkyblockAPI;
+import com.bgsoftware.superiorskyblock.api.events.IslandBankDepositEvent;
+import com.bgsoftware.superiorskyblock.api.events.IslandBankWithdrawEvent;
+import com.bgsoftware.superiorskyblock.api.events.IslandBiomeChangeEvent;
+import com.bgsoftware.superiorskyblock.api.events.IslandCoopPlayerEvent;
 import com.bgsoftware.superiorskyblock.api.events.IslandCreateEvent;
 import com.bgsoftware.superiorskyblock.api.events.IslandDisbandEvent;
 import com.bgsoftware.superiorskyblock.api.events.IslandEnterEvent;
@@ -13,6 +17,7 @@ import com.bgsoftware.superiorskyblock.api.events.IslandLeaveEvent;
 import com.bgsoftware.superiorskyblock.api.events.IslandLeaveProtectedEvent;
 import com.bgsoftware.superiorskyblock.api.events.IslandQuitEvent;
 import com.bgsoftware.superiorskyblock.api.events.IslandTransferEvent;
+import com.bgsoftware.superiorskyblock.api.events.IslandUncoopPlayerEvent;
 import com.bgsoftware.superiorskyblock.api.events.IslandWorthCalculatedEvent;
 import com.bgsoftware.superiorskyblock.api.events.IslandWorthUpdateEvent;
 import com.bgsoftware.superiorskyblock.api.missions.Mission;
@@ -88,6 +93,30 @@ public final class IslandMissions extends Mission<Boolean> implements Listener {
         clearData(superiorPlayer);
     }
 
+    /*
+     *  Events
+     */
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onIslandDeposit(IslandBankDepositEvent e){
+        tryComplete(e, e.getPlayer());
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onIslandWithdraw(IslandBankWithdrawEvent e){
+        tryComplete(e, e.getPlayer());
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onIslandBiomeChange(IslandBiomeChangeEvent e){
+        tryComplete(e, e.getPlayer());
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onIslandCoop(IslandCoopPlayerEvent e){
+        tryComplete(e, e.getPlayer(), e.getTarget());
+    }
+
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onIslandCreate(IslandCreateEvent e){
         tryComplete(e, e.getPlayer());
@@ -144,6 +173,11 @@ public final class IslandMissions extends Mission<Boolean> implements Listener {
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onIslandUncoop(IslandUncoopPlayerEvent e){
+        tryComplete(e, e.getPlayer(), e.getTarget());
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onIslandCalculate(IslandWorthCalculatedEvent e){
         tryComplete(e, e.getPlayer());
     }
@@ -169,6 +203,8 @@ public final class IslandMissions extends Mission<Boolean> implements Listener {
                 String result = placeholders.parse(engine.eval(successCheck, bindings) + "", superiorPlayer.asOfflinePlayer());
                 success = Boolean.parseBoolean(result);
             }catch(Exception ex){
+                System.out.println("Engine: " + engine);
+                System.out.println("Placeholders: " + placeholders);
                 ex.printStackTrace();
             }
 
