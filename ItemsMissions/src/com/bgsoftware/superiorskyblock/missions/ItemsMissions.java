@@ -143,6 +143,8 @@ public final class ItemsMissions extends Mission<ItemsMissions.ItemsTracker> imp
 
     @Override
     public void onComplete(SuperiorPlayer superiorPlayer) {
+        clearData(superiorPlayer);
+        getProgress(superiorPlayer);
         ItemsTracker itemsTracker = get(superiorPlayer);
 
         if(itemsTracker == null)
