@@ -18,9 +18,11 @@ import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.event.player.PlayerPickupItemEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.PlayerInventory;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -150,7 +152,7 @@ public final class ItemsMissions extends Mission<ItemsMissions.ItemsTracker> imp
         if(itemsTracker == null)
             return;
 
-        superiorPlayer.asPlayer().getInventory().removeItem(itemsTracker.getItems().toArray(new ItemStack[0]));
+        removeItems(superiorPlayer.asPlayer().getInventory(), itemsTracker.getItems().toArray(new ItemStack[0]));
 
         onCompleteFail(superiorPlayer);
     }
@@ -213,6 +215,29 @@ public final class ItemsMissions extends Mission<ItemsMissions.ItemsTracker> imp
         }
 
         return false;
+    }
+
+    private static void removeItems(PlayerInventory inventory, ItemStack... itemStacks){
+        Collection<ItemStack> leftOvers = inventory.removeItem(itemStacks).values();
+        ItemStack offHandItem = null;
+
+        try{
+            offHandItem = inventory.getItem(40);
+        }catch (Exception ignored){}
+
+        if(offHandItem != null && offHandItem.getType() != Material.AIR) {
+            for (ItemStack itemStack : leftOvers) {
+                if(offHandItem.isSimilar(itemStack)){
+                    if(offHandItem.getAmount() > itemStack.getAmount()){
+                        offHandItem.setAmount(offHandItem.getAmount() - itemStack.getAmount());
+                    }
+                    else{
+                        itemStack.setAmount(itemStack.getAmount() - offHandItem.getAmount());
+                        inventory.setItem(40, new ItemStack(Material.AIR));
+                    }
+                }
+            }
+        }
     }
 
     public static class ItemsTracker {
