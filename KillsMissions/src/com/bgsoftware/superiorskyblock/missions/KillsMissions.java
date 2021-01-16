@@ -194,7 +194,9 @@ public final class KillsMissions extends Mission<KillsMissions.KillsTracker> imp
 
     private int getEntityAmount(LivingEntity entity){
         if(Bukkit.getPluginManager().isPluginEnabled("WildStacker")){
-            return com.bgsoftware.wildstacker.api.WildStackerAPI.getEntityAmount(entity);
+            try {
+                return com.bgsoftware.wildstacker.api.WildStackerAPI.getEntityAmount(entity);
+            }catch (Exception ignored){}
         }
 
         return 1;
