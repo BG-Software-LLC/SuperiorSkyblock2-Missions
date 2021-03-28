@@ -1,0 +1,5 @@
+group 'IslandMissions'
+
+dependencies {
+    compileOnly 'me.clip:PlaceholderAPI:latest'
+}

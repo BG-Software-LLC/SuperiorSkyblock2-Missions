@@ -1,0 +1,40 @@
+plugins {
+    id 'java'
+    id 'maven'
+    id 'com.github.johnrengelman.shadow' version '6.1.0'
+    id 'maven-publish'
+}
+
+group 'SuperiorSkyblock-Missions'
+
+subprojects {
+    apply plugin: 'java'
+    apply plugin: 'com.github.johnrengelman.shadow'
+
+    repositories {
+        maven { url 'https://repo.bg-software.com/repository/nms/' }
+        maven { url 'https://repo.bg-software.com/repository/api/' }
+        maven { url 'https://repo.bg-software.com/repository/public-libs/' }
+    }
+
+    dependencies {
+        compileOnly "org.spigotmc:v1_8_R3-Taco:latest"
+        compileOnly "com.bgsoftware:SuperiorSkyblockAPI:latest"
+    }
+
+    shadowJar {
+        archiveFileName = "${project.name}.jar"
+        destinationDir = file("../target/")
+    }
+
+    build {
+        dependsOn shadowJar
+    }
+}
+
+build {
+    dependsOn shadowJar
+}
+
+publish.shouldRunAfter shadowJar
+shadowJar.shouldRunAfter build
