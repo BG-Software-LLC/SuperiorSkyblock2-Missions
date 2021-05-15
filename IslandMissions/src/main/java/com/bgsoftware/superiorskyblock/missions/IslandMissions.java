@@ -1,6 +1,6 @@
 package com.bgsoftware.superiorskyblock.missions;
 
-import com.bgsoftware.superiorskyblock.api.SuperiorSkyblockAPI;
+import com.bgsoftware.superiorskyblock.api.SuperiorSkyblock;
 import com.bgsoftware.superiorskyblock.api.events.IslandBankDepositEvent;
 import com.bgsoftware.superiorskyblock.api.events.IslandBankWithdrawEvent;
 import com.bgsoftware.superiorskyblock.api.events.IslandBiomeChangeEvent;
@@ -23,6 +23,7 @@ import com.bgsoftware.superiorskyblock.api.events.IslandWorthUpdateEvent;
 import com.bgsoftware.superiorskyblock.api.missions.Mission;
 import com.bgsoftware.superiorskyblock.api.missions.MissionLoadException;
 import com.bgsoftware.superiorskyblock.api.wrappers.SuperiorPlayer;
+import com.bgsoftware.superiorskyblock.api.scripts.IScriptEngine;
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.configuration.ConfigurationSection;
@@ -31,8 +32,6 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.plugin.java.JavaPlugin;
 
-import javax.script.ScriptEngine;
-import javax.script.ScriptEngineManager;
 import javax.script.SimpleBindings;
 import java.util.HashMap;
 import java.util.Map;
@@ -40,17 +39,17 @@ import java.util.Map;
 @SuppressWarnings("unused")
 public final class IslandMissions extends Mission<Boolean> implements Listener {
 
-    private static final ScriptEngine engine = new ScriptEngineManager().getEngineByName("JavaScript");
-
     private final Map<String, Boolean> missionEvents = new HashMap<>();
 
     private Placeholders placeholders = new Placeholders_None();
     private String successCheck;
     private JavaPlugin plugin;
+    private SuperiorSkyblock superiorSkyblock;
 
     @Override
     public void load(JavaPlugin plugin, ConfigurationSection section) throws MissionLoadException {
         this.plugin = plugin;
+        this.superiorSkyblock = (SuperiorSkyblock) plugin;
 
         if(!section.contains("events"))
             throw new MissionLoadException("You must have the \"events\" section in the config.");
@@ -199,11 +198,13 @@ public final class IslandMissions extends Mission<Boolean> implements Listener {
             SimpleBindings bindings = new SimpleBindings();
             bindings.put("event", event);
 
+            IScriptEngine scriptEngine = superiorSkyblock.getScriptEngine();
+
             try{
-                String result = placeholders.parse(engine.eval(successCheck, bindings) + "", superiorPlayer.asOfflinePlayer());
+                String result = placeholders.parse(scriptEngine.eval(successCheck, bindings) + "", superiorPlayer.asOfflinePlayer());
                 success = Boolean.parseBoolean(result);
             }catch(Exception ex){
-                System.out.println("Engine: " + engine);
+                System.out.println("Engine: " + scriptEngine);
                 System.out.println("Placeholders: " + placeholders);
                 ex.printStackTrace();
             }
@@ -213,7 +214,7 @@ public final class IslandMissions extends Mission<Boolean> implements Listener {
                 if (rewardedPlayer != null) {
                     Bukkit.getScheduler().runTaskLater(plugin, () -> {
                         insertData(rewardedPlayer, true);
-                        SuperiorSkyblockAPI.getSuperiorSkyblock().getMissions().rewardMission(this, rewardedPlayer, true);
+                        superiorSkyblock.getMissions().rewardMission(this, rewardedPlayer, true);
                     }, 5L);
                 }
             }
