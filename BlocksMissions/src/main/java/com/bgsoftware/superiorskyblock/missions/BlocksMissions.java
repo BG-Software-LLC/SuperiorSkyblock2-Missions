@@ -43,7 +43,7 @@ public final class BlocksMissions extends Mission<BlocksMissions.BlocksTracker> 
     private static final Pattern percentagePattern = Pattern.compile("(.*)\\{percentage_(.+?)}(.*)"),
             valuePattern = Pattern.compile("(.*)\\{value_(.+?)}(.*)");
 
-    private static final Set<Location> placedBlocks = new HashSet<>();
+    private static final Map<Location, Material> placedBlocks = new HashMap<>();
 
     private final Map<List<String>, Integer> requiredBlocks = new HashMap<>();
 
@@ -182,9 +182,12 @@ public final class BlocksMissions extends Mission<BlocksMissions.BlocksTracker> 
 
         SuperiorPlayer superiorPlayer = SuperiorSkyblockAPI.getPlayer(e.getPlayer());
 
-        boolean placedByPlayer = placedBlocks.contains(e.getBlock().getLocation());
-        if(placedByPlayer)
+        Material placedBlockMaterial = placedBlocks.get(e.getBlock().getLocation());
+
+        if(placedBlockMaterial != null)
             Bukkit.getScheduler().runTaskLater(plugin, () -> placedBlocks.remove(e.getBlock().getLocation()), 2L);
+
+        boolean placedByPlayer = placedBlockMaterial == e.getBlock().getType();
 
         if(isBarrel(e.getBlock()) || (onlyNatural && placedByPlayer) || !isMissionBlock(blockType, blockData) ||
                 !superiorSkyblock.getMissions().hasAllRequiredMissions(superiorPlayer, this))
@@ -208,7 +211,7 @@ public final class BlocksMissions extends Mission<BlocksMissions.BlocksTracker> 
 
                 SuperiorPlayer superiorPlayer = SuperiorSkyblockAPI.getPlayer(e.getPlayer());
 
-                boolean blockReplace = placedBlocks.contains(e.getBlock().getLocation());
+                boolean blockReplace = placedBlocks.get(e.getBlock().getLocation()) == e.getBlock().getType();
 
                 if (isBarrel(e.getBlock()) || (!replaceBlocks && blockReplace) || !isMissionBlock(blockType, blockData) ||
                         !superiorSkyblock.getMissions().hasAllRequiredMissions(superiorPlayer, this))
@@ -217,7 +220,7 @@ public final class BlocksMissions extends Mission<BlocksMissions.BlocksTracker> 
                 handleBlockTrack(e.getPlayer(), blockType, blockData, getBlockAmount(e.getPlayer(), e.getBlock()));
             }
         } finally {
-            placedBlocks.add(e.getBlock().getLocation());
+            placedBlocks.put(e.getBlock().getLocation(), e.getBlock().getType());
         }
     }
 
@@ -262,9 +265,12 @@ public final class BlocksMissions extends Mission<BlocksMissions.BlocksTracker> 
 
                 SuperiorPlayer superiorPlayer = SuperiorSkyblockAPI.getPlayer(e.getPlayer());
 
-                boolean placedByPlayer = placedBlocks.contains(location);
-                if(placedByPlayer)
+                Material placedBlockMaterial = placedBlocks.get(location);
+
+                if(placedBlockMaterial != null)
                     Bukkit.getScheduler().runTaskLater(plugin, () -> placedBlocks.remove(location), 2L);
+
+                boolean placedByPlayer = placedBlockMaterial == blockType;
 
                 if(isBarrel(block) || (onlyNatural && placedByPlayer) || !isMissionBlock(blockType, blockData) ||
                         !superiorSkyblock.getMissions().hasAllRequiredMissions(superiorPlayer, mission))
