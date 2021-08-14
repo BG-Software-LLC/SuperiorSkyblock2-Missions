@@ -12,12 +12,15 @@ import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
+import org.bukkit.block.BlockFace;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
+import org.bukkit.event.block.BlockPistonExtendEvent;
+import org.bukkit.event.block.BlockPistonRetractEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
@@ -194,6 +197,25 @@ public final class BlocksMissions extends Mission<BlocksMissions.BlocksTracker> 
             return;
 
         handleBlockTrack(e.getPlayer(), blockType, blockData, getBlockAmount(e.getPlayer(), e.getBlock()));
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onPistonRetract(BlockPistonRetractEvent e){
+        onBlockPistonMove(e.getBlocks(), e.getDirection());
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onPistonExtend(BlockPistonExtendEvent e){
+        onBlockPistonMove(e.getBlocks(), e.getDirection());
+    }
+
+    private void onBlockPistonMove(List<Block> blockList, BlockFace direction){
+        for(Block block : blockList){
+            Material blockMaterial = placedBlocks.remove(block.getLocation());
+            if(blockMaterial != null){
+                placedBlocks.put(block.getRelative(direction).getLocation(), blockMaterial);
+            }
+        }
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
