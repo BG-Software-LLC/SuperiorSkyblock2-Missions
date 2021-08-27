@@ -17,4 +17,5 @@ include 'KillsMissions'
 include 'StatisticsMissions'
 include 'BrewingMissions'
 include 'FishingMissions'
+include 'FarmingMissions'
 
