@@ -43,10 +43,10 @@ public final class ItemsMissions extends Mission<ItemsMissions.ItemsTracker> imp
     public void load(JavaPlugin plugin, ConfigurationSection section) throws MissionLoadException {
         this.plugin = plugin;
 
-        if(!section.contains("required-items"))
+        if (!section.contains("required-items"))
             throw new MissionLoadException("You must have the \"required-items\" section in the config.");
 
-        for(String key : section.getConfigurationSection("required-items").getKeys(false)){
+        for (String key : section.getConfigurationSection("required-items").getKeys(false)) {
             List<String> itemStacks = section.getStringList("required-items." + key + ".types");
             int requiredAmount = section.getInt("required-items." + key + ".amount");
             requiredItems.put(itemStacks, requiredAmount);
@@ -61,7 +61,12 @@ public final class ItemsMissions extends Mission<ItemsMissions.ItemsTracker> imp
     public double getProgress(SuperiorPlayer superiorPlayer) {
         double progress = 0.0;
 
-        Inventory inventory = superiorPlayer.asPlayer().getInventory();
+        Player player = superiorPlayer.asPlayer();
+
+        if (player == null)
+            return progress;
+
+        Inventory inventory = player.getInventory();
         Map<ItemStack, Integer> countedItems = countItems(inventory);
 
         int totalRequiredAmount = 0;
@@ -69,13 +74,13 @@ public final class ItemsMissions extends Mission<ItemsMissions.ItemsTracker> imp
 
         ItemsTracker itemsTracker = getOrCreate(superiorPlayer, s -> new ItemsTracker());
 
-        if(itemsTracker == null)
+        if (itemsTracker == null)
             return 0.0;
 
         for (List<String> requiredItem : requiredItems.keySet()) {
             int requiredAmount = requiredItems.get(requiredItem);
             int itemAmount = 0;
-            for(String item : requiredItem){
+            for (String item : requiredItem) {
                 try {
                     //Get the amount of the item.
                     Material type = Material.valueOf(item.contains(":") ? item.split(":")[0] : item);
@@ -83,7 +88,7 @@ public final class ItemsMissions extends Mission<ItemsMissions.ItemsTracker> imp
                     int currentItemAmount = countedItems.get(new ItemStack(type, 1, data));
 
                     //Making sure to not exceed the required item amount
-                    if(itemAmount + currentItemAmount > requiredAmount)
+                    if (itemAmount + currentItemAmount > requiredAmount)
                         currentItemAmount = requiredAmount - itemAmount;
 
                     //Summing the amount to a global variable
@@ -91,7 +96,8 @@ public final class ItemsMissions extends Mission<ItemsMissions.ItemsTracker> imp
 
                     //Adding the item to a list, so we can remove it later.
                     itemsTracker.track(new ItemStack(type, currentItemAmount, data));
-                }catch(Exception ignored){}
+                } catch (Exception ignored) {
+                }
             }
 
             totalRequiredAmount += requiredAmount;
@@ -105,20 +111,25 @@ public final class ItemsMissions extends Mission<ItemsMissions.ItemsTracker> imp
 
     @Override
     public int getProgressValue(SuperiorPlayer superiorPlayer) {
-        Inventory inventory = superiorPlayer.asPlayer().getInventory();
+        Player player = superiorPlayer.asPlayer();
+
+        if (player == null)
+            return 0;
+
+        Inventory inventory = player.getInventory();
         Map<ItemStack, Integer> countedItems = countItems(inventory);
 
         int totalItemAmount = 0;
 
         ItemsTracker itemsTracker = getOrCreate(superiorPlayer, s -> new ItemsTracker());
 
-        if(itemsTracker == null)
+        if (itemsTracker == null)
             return 0;
 
         for (List<String> requiredItem : requiredItems.keySet()) {
             int requiredAmount = requiredItems.get(requiredItem);
             int itemAmount = 0;
-            for(String item : requiredItem){
+            for (String item : requiredItem) {
                 try {
                     //Get the amount of the item.
                     Material type = Material.valueOf(item.contains(":") ? item.split(":")[0] : item);
@@ -126,7 +137,7 @@ public final class ItemsMissions extends Mission<ItemsMissions.ItemsTracker> imp
                     int currentItemAmount = countedItems.get(new ItemStack(type, 1, data));
 
                     //Making sure to not exceed the required item amount
-                    if(itemAmount + currentItemAmount > requiredAmount)
+                    if (itemAmount + currentItemAmount > requiredAmount)
                         currentItemAmount = requiredAmount - itemAmount;
 
                     //Summing the amount to a global variable
@@ -134,7 +145,8 @@ public final class ItemsMissions extends Mission<ItemsMissions.ItemsTracker> imp
 
                     //Adding the item to a list, so we can remove it later.
                     itemsTracker.track(new ItemStack(type, currentItemAmount, data));
-                }catch(Exception ignored){}
+                } catch (Exception ignored) {
+                }
             }
 
             totalItemAmount += itemAmount;
@@ -149,10 +161,13 @@ public final class ItemsMissions extends Mission<ItemsMissions.ItemsTracker> imp
         getProgress(superiorPlayer);
         ItemsTracker itemsTracker = get(superiorPlayer);
 
-        if(itemsTracker == null)
+        if (itemsTracker == null)
             return;
 
-        removeItems(superiorPlayer.asPlayer().getInventory(), itemsTracker.getItems().toArray(new ItemStack[0]));
+        Player player = superiorPlayer.asPlayer();
+        assert player != null;
+
+        removeItems(player.getInventory(), itemsTracker.getItems().toArray(new ItemStack[0]));
 
         onCompleteFail(superiorPlayer);
     }
@@ -163,37 +178,37 @@ public final class ItemsMissions extends Mission<ItemsMissions.ItemsTracker> imp
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
-    public void onItemPickup(PlayerPickupItemEvent e){
+    public void onItemPickup(PlayerPickupItemEvent e) {
         ItemStack itemStack = e.getItem().getItemStack();
         SuperiorPlayer superiorPlayer = SuperiorSkyblockAPI.getPlayer(e.getPlayer());
 
-        if(!isMissionItem(itemStack) || !superiorSkyblock.getMissions().canCompleteNoProgress(superiorPlayer, this))
+        if (!isMissionItem(itemStack) || !superiorSkyblock.getMissions().canCompleteNoProgress(superiorPlayer, this))
             return;
 
         Bukkit.getScheduler().runTaskLaterAsynchronously(plugin, () -> {
-            if(canComplete(superiorPlayer))
+            if (canComplete(superiorPlayer))
                 SuperiorSkyblockAPI.getSuperiorSkyblock().getMissions().rewardMission(this, superiorPlayer, true);
         }, 2L);
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
-    public void onInventoryClick(InventoryClickEvent e){
-        if(!(e.getWhoClicked() instanceof Player) || e.getClickedInventory() == null ||
+    public void onInventoryClick(InventoryClickEvent e) {
+        if (!(e.getWhoClicked() instanceof Player) || e.getClickedInventory() == null ||
                 e.getClickedInventory().getType() != InventoryType.CHEST || e.getClick() != ClickType.SHIFT_LEFT)
             return;
 
         SuperiorPlayer superiorPlayer = SuperiorSkyblockAPI.getPlayer((Player) e.getWhoClicked());
 
-        if(!isMissionItem(e.getCurrentItem()) || !superiorSkyblock.getMissions().canCompleteNoProgress(superiorPlayer, this))
+        if (!isMissionItem(e.getCurrentItem()) || !superiorSkyblock.getMissions().canCompleteNoProgress(superiorPlayer, this))
             return;
 
         Bukkit.getScheduler().runTaskLaterAsynchronously(plugin, () -> {
-            if(canComplete(superiorPlayer))
+            if (canComplete(superiorPlayer))
                 SuperiorSkyblockAPI.getSuperiorSkyblock().getMissions().rewardMission(this, superiorPlayer, true);
         }, 2L);
     }
 
-    private Map<ItemStack, Integer> countItems(Inventory inventory){
+    private Map<ItemStack, Integer> countItems(Inventory inventory) {
         Map<ItemStack, Integer> countedItems = new HashMap<>();
 
         Arrays.stream(inventory.getContents()).filter(Objects::nonNull).forEach(itemStack -> {
@@ -205,33 +220,33 @@ public final class ItemsMissions extends Mission<ItemsMissions.ItemsTracker> imp
         return countedItems;
     }
 
-    private boolean isMissionItem(ItemStack itemStack){
-        if(itemStack == null)
+    private boolean isMissionItem(ItemStack itemStack) {
+        if (itemStack == null)
             return false;
 
         for (List<String> requiredItem : requiredItems.keySet()) {
-            if(requiredItem.contains("ALL") || requiredItem.contains("all") || requiredItem.contains(itemStack.getType().name()))
+            if (requiredItem.contains("ALL") || requiredItem.contains("all") || requiredItem.contains(itemStack.getType().name()))
                 return true;
         }
 
         return false;
     }
 
-    private static void removeItems(PlayerInventory inventory, ItemStack... itemStacks){
+    private static void removeItems(PlayerInventory inventory, ItemStack... itemStacks) {
         Collection<ItemStack> leftOvers = inventory.removeItem(itemStacks).values();
         ItemStack offHandItem = null;
 
-        try{
+        try {
             offHandItem = inventory.getItem(40);
-        }catch (Exception ignored){}
+        } catch (Exception ignored) {
+        }
 
-        if(offHandItem != null && offHandItem.getType() != Material.AIR) {
+        if (offHandItem != null && offHandItem.getType() != Material.AIR) {
             for (ItemStack itemStack : leftOvers) {
-                if(offHandItem.isSimilar(itemStack)){
-                    if(offHandItem.getAmount() > itemStack.getAmount()){
+                if (offHandItem.isSimilar(itemStack)) {
+                    if (offHandItem.getAmount() > itemStack.getAmount()) {
                         offHandItem.setAmount(offHandItem.getAmount() - itemStack.getAmount());
-                    }
-                    else{
+                    } else {
                         itemStack.setAmount(itemStack.getAmount() - offHandItem.getAmount());
                         inventory.setItem(40, new ItemStack(Material.AIR));
                     }
@@ -244,11 +259,11 @@ public final class ItemsMissions extends Mission<ItemsMissions.ItemsTracker> imp
 
         private final Set<ItemStack> itemsTracker = new HashSet<>();
 
-        void track(ItemStack itemStack){
+        void track(ItemStack itemStack) {
             itemsTracker.add(itemStack.clone());
         }
 
-        Set<ItemStack> getItems(){
+        Set<ItemStack> getItems() {
             return itemsTracker;
         }
 

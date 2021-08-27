@@ -5,7 +5,6 @@ import com.bgsoftware.superiorskyblock.api.SuperiorSkyblockAPI;
 import com.bgsoftware.superiorskyblock.api.missions.Mission;
 import com.bgsoftware.superiorskyblock.api.missions.MissionLoadException;
 import com.bgsoftware.superiorskyblock.api.wrappers.SuperiorPlayer;
-
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
@@ -46,18 +45,18 @@ public final class CraftingMissions extends Mission<CraftingMissions.CraftingsTr
     public void load(JavaPlugin plugin, ConfigurationSection section) throws MissionLoadException {
         this.plugin = plugin;
 
-        if(!section.contains("craftings"))
+        if (!section.contains("craftings"))
             throw new MissionLoadException("You must have the \"craftings\" section in the config.");
 
-        for(String key : section.getConfigurationSection("craftings").getKeys(false)){
+        for (String key : section.getConfigurationSection("craftings").getKeys(false)) {
             String type = section.getString("craftings." + key + ".type");
             short data = (short) section.getInt("craftings." + key + ".data", 0);
             int amount = section.getInt("craftings." + key + ".amount", 1);
             Material material;
 
-            try{
+            try {
                 material = Material.valueOf(type);
-            }catch(IllegalArgumentException ex){
+            } catch (IllegalArgumentException ex) {
                 throw new MissionLoadException("Invalid crafting result " + type + ".");
             }
 
@@ -73,13 +72,13 @@ public final class CraftingMissions extends Mission<CraftingMissions.CraftingsTr
     public double getProgress(SuperiorPlayer superiorPlayer) {
         CraftingsTracker craftingsTracker = get(superiorPlayer);
 
-        if(craftingsTracker == null)
+        if (craftingsTracker == null)
             return 0.0;
 
         int requiredItems = 0;
         int interactions = 0;
 
-        for(Map.Entry<ItemStack, Integer> entry : this.itemsToCraft.entrySet()){
+        for (Map.Entry<ItemStack, Integer> entry : this.itemsToCraft.entrySet()) {
             requiredItems += entry.getValue();
             interactions += Math.min(craftingsTracker.getCrafts(entry.getKey()), entry.getValue());
         }
@@ -91,12 +90,12 @@ public final class CraftingMissions extends Mission<CraftingMissions.CraftingsTr
     public int getProgressValue(SuperiorPlayer superiorPlayer) {
         CraftingsTracker craftingsTracker = get(superiorPlayer);
 
-        if(craftingsTracker == null)
+        if (craftingsTracker == null)
             return 0;
 
         int interactions = 0;
 
-        for(Map.Entry<ItemStack, Integer> entry : this.itemsToCraft.entrySet())
+        for (Map.Entry<ItemStack, Integer> entry : this.itemsToCraft.entrySet())
             interactions += Math.min(craftingsTracker.getCrafts(entry.getKey()), entry.getValue());
 
         return interactions;
@@ -114,10 +113,10 @@ public final class CraftingMissions extends Mission<CraftingMissions.CraftingsTr
 
     @Override
     public void saveProgress(ConfigurationSection section) {
-        for(Map.Entry<SuperiorPlayer, CraftingsTracker> entry : entrySet()){
+        for (Map.Entry<SuperiorPlayer, CraftingsTracker> entry : entrySet()) {
             String uuid = entry.getKey().getUniqueId().toString();
             int index = 0;
-            for(Map.Entry<ItemStack, Integer> craftedEntry : entry.getValue().craftedItems.entrySet()){
+            for (Map.Entry<ItemStack, Integer> craftedEntry : entry.getValue().craftedItems.entrySet()) {
                 section.set(uuid + "." + index + ".item", craftedEntry.getKey());
                 section.set(uuid + "." + index + ".amount", craftedEntry.getValue());
                 index++;
@@ -127,8 +126,8 @@ public final class CraftingMissions extends Mission<CraftingMissions.CraftingsTr
 
     @Override
     public void loadProgress(ConfigurationSection section) {
-        for(String uuid : section.getKeys(false)){
-            if(uuid.equals("players"))
+        for (String uuid : section.getKeys(false)) {
+            if (uuid.equals("players"))
                 continue;
 
             CraftingsTracker craftingsTracker = new CraftingsTracker();
@@ -151,12 +150,12 @@ public final class CraftingMissions extends Mission<CraftingMissions.CraftingsTr
 
         ItemMeta itemMeta = itemStack.getItemMeta();
 
-        if(itemMeta.hasDisplayName())
+        if (itemMeta.hasDisplayName())
             itemMeta.setDisplayName(parsePlaceholders(craftingsTracker, itemMeta.getDisplayName()));
 
-        if(itemMeta.hasLore()){
+        if (itemMeta.hasLore()) {
             List<String> lore = new ArrayList<>();
-            for(String line : itemMeta.getLore())
+            for (String line : itemMeta.getLore())
                 lore.add(parsePlaceholders(craftingsTracker, line));
             itemMeta.setLore(lore);
         }
@@ -165,8 +164,8 @@ public final class CraftingMissions extends Mission<CraftingMissions.CraftingsTr
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
-    public void onInventoryClick(InventoryClickEvent e){
-        if(e.getClickedInventory() == null || (e.getClickedInventory().getType() != InventoryType.WORKBENCH &&
+    public void onInventoryClick(InventoryClickEvent e) {
+        if (e.getClickedInventory() == null || (e.getClickedInventory().getType() != InventoryType.WORKBENCH &&
                 e.getClickedInventory().getType() != InventoryType.CRAFTING && e.getClickedInventory().getType() != InventoryType.FURNACE))
             return;
 
@@ -177,7 +176,7 @@ public final class CraftingMissions extends Mission<CraftingMissions.CraftingsTr
 
         SuperiorPlayer superiorPlayer = SuperiorSkyblockAPI.getPlayer(e.getWhoClicked().getUniqueId());
 
-        if(e.getRawSlot() == requiredSlot && itemsToCraft.containsKey(resultItem) &&
+        if (e.getRawSlot() == requiredSlot && itemsToCraft.containsKey(resultItem) &&
                 superiorSkyblock.getMissions().canCompleteNoProgress(superiorPlayer, this)) {
             int amountOfResult = countItems(e.getWhoClicked(), resultItem);
             Bukkit.getScheduler().runTaskLater(plugin, () -> {
@@ -189,39 +188,39 @@ public final class CraftingMissions extends Mission<CraftingMissions.CraftingsTr
 
     }
 
-    private void trackItem(SuperiorPlayer superiorPlayer, ItemStack itemStack){
+    private void trackItem(SuperiorPlayer superiorPlayer, ItemStack itemStack) {
         CraftingsTracker blocksTracker = getOrCreate(superiorPlayer, s -> new CraftingsTracker());
         blocksTracker.trackItem(itemStack);
 
         Bukkit.getScheduler().runTaskLaterAsynchronously(plugin, () -> {
-            if(canComplete(superiorPlayer))
+            if (canComplete(superiorPlayer))
                 SuperiorSkyblockAPI.getSuperiorSkyblock().getMissions().rewardMission(this, superiorPlayer, true);
         }, 2L);
     }
 
-    private static int countItems(HumanEntity humanEntity, ItemStack itemStack){
+    private static int countItems(HumanEntity humanEntity, ItemStack itemStack) {
         int amount = 0;
 
-        if(itemStack == null)
+        if (itemStack == null)
             return amount;
 
         PlayerInventory playerInventory = humanEntity.getInventory();
 
-        for(ItemStack invItem : playerInventory.getContents()){
-            if(invItem != null && itemStack.isSimilar(invItem))
+        for (ItemStack invItem : playerInventory.getContents()) {
+            if (invItem != null && itemStack.isSimilar(invItem))
                 amount += invItem.getAmount();
         }
 
-        if(humanEntity.getItemOnCursor() != null && itemStack.isSimilar(humanEntity.getItemOnCursor()))
+        if (humanEntity.getItemOnCursor() != null && itemStack.isSimilar(humanEntity.getItemOnCursor()))
             amount += humanEntity.getItemOnCursor().getAmount();
 
         return amount;
     }
 
-    private String parsePlaceholders(CraftingsTracker entityTracker, String line){
+    private String parsePlaceholders(CraftingsTracker entityTracker, String line) {
         Matcher matcher = percentagePattern.matcher(line);
 
-        if(matcher.matches()){
+        if (matcher.matches()) {
             try {
                 String requiredBlock = matcher.group(2).toUpperCase();
                 ItemStack itemStack = new ItemStack(Material.valueOf(requiredBlock));
@@ -230,10 +229,11 @@ public final class CraftingMissions extends Mission<CraftingMissions.CraftingsTr
                     line = line.replace("{percentage_" + matcher.group(2) + "}",
                             "" + (entityTracker.getCrafts(itemStack) * 100) / entry.get().getValue());
                 }
-            }catch(Exception ignored){}
+            } catch (Exception ignored) {
+            }
         }
 
-        if((matcher = valuePattern.matcher(line)).matches()){
+        if ((matcher = valuePattern.matcher(line)).matches()) {
             try {
                 String requiredBlock = matcher.group(2).toUpperCase();
                 ItemStack itemStack = new ItemStack(Material.valueOf(requiredBlock));
@@ -242,7 +242,8 @@ public final class CraftingMissions extends Mission<CraftingMissions.CraftingsTr
                     line = line.replace("{value_" + matcher.group(2) + "}",
                             "" + (entityTracker.getCrafts(itemStack)));
                 }
-            }catch(Exception ignored){}
+            } catch (Exception ignored) {
+            }
         }
 
         return ChatColor.translateAlternateColorCodes('&', line);
@@ -252,13 +253,13 @@ public final class CraftingMissions extends Mission<CraftingMissions.CraftingsTr
 
         private final Map<ItemStack, Integer> craftedItems = new HashMap<>();
 
-        void trackItem(ItemStack itemStack){
+        void trackItem(ItemStack itemStack) {
             ItemStack keyItem = itemStack.clone();
             keyItem.setAmount(1);
             craftedItems.put(keyItem, craftedItems.getOrDefault(keyItem, 0) + itemStack.getAmount());
         }
 
-        int getCrafts(ItemStack itemStack){
+        int getCrafts(ItemStack itemStack) {
             ItemStack keyItem = itemStack.clone();
             keyItem.setAmount(1);
             return craftedItems.getOrDefault(keyItem, 0);

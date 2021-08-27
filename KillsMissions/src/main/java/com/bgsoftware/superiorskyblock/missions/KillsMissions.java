@@ -50,10 +50,10 @@ public final class KillsMissions extends Mission<KillsMissions.KillsTracker> imp
     public void load(JavaPlugin plugin, ConfigurationSection section) throws MissionLoadException {
         this.plugin = plugin;
 
-        if(!section.contains("required-entities"))
+        if (!section.contains("required-entities"))
             throw new MissionLoadException("You must have the \"required-entities\" section in the config.");
 
-        for(String key : section.getConfigurationSection("required-entities").getKeys(false)){
+        for (String key : section.getConfigurationSection("required-entities").getKeys(false)) {
             List<String> entityTypes = section.getStringList("required-entities." + key + ".types");
             int requiredAmount = section.getInt("required-entities." + key + ".amount");
             requiredEntities.put(entityTypes, requiredAmount);
@@ -68,13 +68,13 @@ public final class KillsMissions extends Mission<KillsMissions.KillsTracker> imp
     public double getProgress(SuperiorPlayer superiorPlayer) {
         KillsTracker killsTracker = get(superiorPlayer);
 
-        if(killsTracker == null)
+        if (killsTracker == null)
             return 0.0;
 
         int requiredEntities = 0;
         int kills = 0;
 
-        for(Map.Entry<List<String>, Integer> requiredEntity : this.requiredEntities.entrySet()){
+        for (Map.Entry<List<String>, Integer> requiredEntity : this.requiredEntities.entrySet()) {
             requiredEntities += requiredEntity.getValue();
             kills += Math.min(killsTracker.getKills(requiredEntity.getKey()), requiredEntity.getValue());
         }
@@ -86,12 +86,12 @@ public final class KillsMissions extends Mission<KillsMissions.KillsTracker> imp
     public int getProgressValue(SuperiorPlayer superiorPlayer) {
         KillsTracker killsTracker = get(superiorPlayer);
 
-        if(killsTracker == null)
+        if (killsTracker == null)
             return 0;
 
         int kills = 0;
 
-        for(Map.Entry<List<String>, Integer> requiredEntity : this.requiredEntities.entrySet())
+        for (Map.Entry<List<String>, Integer> requiredEntity : this.requiredEntities.entrySet())
             kills += Math.min(killsTracker.getKills(requiredEntity.getKey()), requiredEntity.getValue());
 
         return kills;
@@ -99,7 +99,7 @@ public final class KillsMissions extends Mission<KillsMissions.KillsTracker> imp
 
     @Override
     public void onComplete(SuperiorPlayer superiorPlayer) {
-        if(resetAfterFinish)
+        if (resetAfterFinish)
             clearData(superiorPlayer);
     }
 
@@ -110,9 +110,9 @@ public final class KillsMissions extends Mission<KillsMissions.KillsTracker> imp
 
     @Override
     public void saveProgress(ConfigurationSection section) {
-        for(Map.Entry<SuperiorPlayer, KillsTracker> entry : entrySet()){
+        for (Map.Entry<SuperiorPlayer, KillsTracker> entry : entrySet()) {
             String uuid = entry.getKey().getUniqueId().toString();
-            for(Map.Entry<String, Integer> brokenEntry : entry.getValue().killsTracker.entrySet()){
+            for (Map.Entry<String, Integer> brokenEntry : entry.getValue().killsTracker.entrySet()) {
                 section.set(uuid + "." + brokenEntry.getKey(), brokenEntry.getValue());
             }
         }
@@ -120,14 +120,14 @@ public final class KillsMissions extends Mission<KillsMissions.KillsTracker> imp
 
     @Override
     public void loadProgress(ConfigurationSection section) {
-        for(String uuid : section.getKeys(false)){
+        for (String uuid : section.getKeys(false)) {
             KillsTracker killsTracker = new KillsTracker();
             UUID playerUUID = UUID.fromString(uuid);
             SuperiorPlayer superiorPlayer = SuperiorSkyblockAPI.getPlayer(playerUUID);
 
             insertData(superiorPlayer, killsTracker);
 
-            for(String key : section.getConfigurationSection(uuid).getKeys(false)){
+            for (String key : section.getConfigurationSection(uuid).getKeys(false)) {
                 killsTracker.killsTracker.put(key, section.getInt(uuid + "." + key));
             }
         }
@@ -139,12 +139,12 @@ public final class KillsMissions extends Mission<KillsMissions.KillsTracker> imp
 
         ItemMeta itemMeta = itemStack.getItemMeta();
 
-        if(itemMeta.hasDisplayName())
+        if (itemMeta.hasDisplayName())
             itemMeta.setDisplayName(parsePlaceholders(killsTracker, itemMeta.getDisplayName()));
 
-        if(itemMeta.hasLore()){
+        if (itemMeta.hasLore()) {
             List<String> lore = new ArrayList<>();
-            for(String line : itemMeta.getLore())
+            for (String line : itemMeta.getLore())
                 lore.add(parsePlaceholders(killsTracker, line));
             itemMeta.setLore(lore);
         }
@@ -153,83 +153,83 @@ public final class KillsMissions extends Mission<KillsMissions.KillsTracker> imp
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
-    public void onEntityKill(EntityDeathEvent e){
-        if(!isMissionEntity(e.getEntity()))
+    public void onEntityKill(EntityDeathEvent e) {
+        if (!isMissionEntity(e.getEntity()))
             return;
 
         EntityDamageEvent damageCause = e.getEntity().getLastDamageCause();
 
-        if(!(damageCause instanceof EntityDamageByEntityEvent))
+        if (!(damageCause instanceof EntityDamageByEntityEvent))
             return;
 
         EntityDamageByEntityEvent entityDamageByEntityEvent = (EntityDamageByEntityEvent) damageCause;
 
         Player damager = null;
 
-        if(entityDamageByEntityEvent.getDamager() instanceof Player){
+        if (entityDamageByEntityEvent.getDamager() instanceof Player) {
             damager = (Player) entityDamageByEntityEvent.getDamager();
-        }
-        else if(entityDamageByEntityEvent.getDamager() instanceof Projectile){
+        } else if (entityDamageByEntityEvent.getDamager() instanceof Projectile) {
             ProjectileSource shooter = ((Projectile) entityDamageByEntityEvent.getDamager()).getShooter();
-            if(shooter instanceof Player)
+            if (shooter instanceof Player)
                 damager = (Player) shooter;
         }
 
-        if(damager == null)
+        if (damager == null)
             return;
 
         SuperiorPlayer superiorPlayer = SuperiorSkyblockAPI.getPlayer(damager);
 
-        if(!superiorSkyblock.getMissions().canCompleteNoProgress(superiorPlayer, this))
+        if (!superiorSkyblock.getMissions().canCompleteNoProgress(superiorPlayer, this))
             return;
 
         KillsTracker killsTracker = getOrCreate(superiorPlayer, s -> new KillsTracker());
         killsTracker.track(e.getEntity().getType().name(), getEntityAmount(e.getEntity()));
 
         Bukkit.getScheduler().runTaskLaterAsynchronously(plugin, () -> {
-            if(canComplete(superiorPlayer))
+            if (canComplete(superiorPlayer))
                 SuperiorSkyblockAPI.getSuperiorSkyblock().getMissions().rewardMission(this, superiorPlayer, true);
         }, 2L);
     }
 
-    private int getEntityAmount(LivingEntity entity){
-        if(Bukkit.getPluginManager().isPluginEnabled("WildStacker")){
+    private int getEntityAmount(LivingEntity entity) {
+        if (Bukkit.getPluginManager().isPluginEnabled("WildStacker")) {
             try {
                 return com.bgsoftware.wildstacker.api.WildStackerAPI.getEntityAmount(entity);
-            }catch (Exception ignored){}
+            } catch (Exception ignored) {
+            }
         }
 
         return 1;
     }
 
-    private boolean isMissionEntity(Entity entity){
-        if(entity == null || entity instanceof ArmorStand)
+    private boolean isMissionEntity(Entity entity) {
+        if (entity == null || entity instanceof ArmorStand)
             return false;
 
         for (List<String> requiredEntity : requiredEntities.keySet()) {
-            if(requiredEntity.contains("ALL") || requiredEntity.contains("all") || requiredEntity.contains(entity.getType().name()))
+            if (requiredEntity.contains("ALL") || requiredEntity.contains("all") || requiredEntity.contains(entity.getType().name()))
                 return true;
         }
 
         return false;
     }
 
-    private String parsePlaceholders(KillsTracker killsTracker, String line){
+    private String parsePlaceholders(KillsTracker killsTracker, String line) {
         Matcher matcher = percentagePattern.matcher(line);
 
-        if(matcher.matches()){
+        if (matcher.matches()) {
             String requiredBlock = matcher.group(2).toUpperCase();
             Optional<Map.Entry<List<String>, Integer>> entry = requiredEntities.entrySet().stream().filter(e -> e.getKey().contains(requiredBlock)).findAny();
-            if(entry.isPresent()) {
+            if (entry.isPresent()) {
                 line = line.replace("{percentage_" + matcher.group(2) + "}",
                         "" + (killsTracker.getKills(Collections.singletonList(requiredBlock)) * 100) / entry.get().getValue());
             }
         }
 
-        if((matcher = valuePattern.matcher(line)).matches()){
+        if ((matcher = valuePattern.matcher(line)).matches()) {
             String requiredBlock = matcher.group(2).toUpperCase();
             Optional<Map.Entry<List<String>, Integer>> entry = requiredEntities.entrySet().stream().filter(e -> e.getKey().contains(requiredBlock)).findFirst();
-            if(entry.isPresent()) {
+            if (entry.isPresent()) {
                 line = line.replace("{value_" + matcher.group(2) + "}",
                         "" + killsTracker.getKills(Collections.singletonList(requiredBlock)));
             }
@@ -242,17 +242,17 @@ public final class KillsMissions extends Mission<KillsMissions.KillsTracker> imp
 
         private final Map<String, Integer> killsTracker = new HashMap<>();
 
-        void track(String entity, int amount){
+        void track(String entity, int amount) {
             int newAmount = amount + killsTracker.getOrDefault(entity, 0);
             killsTracker.put(entity, newAmount);
         }
 
-        int getKills(List<String> entities){
+        int getKills(List<String> entities) {
             int amount = 0;
             boolean all = entities.contains("ALL") || entities.contains("all");
 
-            for(String entity : killsTracker.keySet()){
-                if(all || entities.contains(entity))
+            for (String entity : killsTracker.keySet()) {
+                if (all || entities.contains(entity))
                     amount += killsTracker.get(entity);
             }
 

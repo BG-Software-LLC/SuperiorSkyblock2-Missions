@@ -33,10 +33,10 @@ public final class StatisticsMissions extends Mission<Void> implements Listener 
     public void load(JavaPlugin plugin, ConfigurationSection section) throws MissionLoadException {
         this.plugin = plugin;
 
-        if(!section.contains("required-statistics"))
+        if (!section.contains("required-statistics"))
             throw new MissionLoadException("You must have the \"required-blocks\" section in the config.");
 
-        for(String key : section.getConfigurationSection("required-statistics").getKeys(false)){
+        for (String key : section.getConfigurationSection("required-statistics").getKeys(false)) {
             List<String> blocks = section.getStringList("required-statistics." + key + ".statistics");
             int requiredAmount = section.getInt("required-statistics." + key + ".amount");
             requiredStatistics.put(blocks, requiredAmount);
@@ -52,20 +52,20 @@ public final class StatisticsMissions extends Mission<Void> implements Listener 
         int totalItemAmount = 0;
         Player player = superiorPlayer.asPlayer();
 
-        if(player == null)
+        if (player == null)
             return progress;
 
         for (List<String> requiredStatistic : requiredStatistics.keySet()) {
             int requiredAmount = requiredStatistics.get(requiredStatistic);
             int statisticAmount = 0;
-            for(String statistic : requiredStatistic){
+            for (String statistic : requiredStatistic) {
                 int currentStatisticAmount = getStatisticAmount(player, statistic);
 
-                if(currentStatisticAmount == -1)
+                if (currentStatisticAmount == -1)
                     continue;
 
                 //Making sure to not exceed the required item amount
-                if(statisticAmount + currentStatisticAmount > requiredAmount)
+                if (statisticAmount + currentStatisticAmount > requiredAmount)
                     currentStatisticAmount = requiredAmount - statisticAmount;
 
                 //Summing the amount to a global variable
@@ -86,17 +86,17 @@ public final class StatisticsMissions extends Mission<Void> implements Listener 
         int totalItemAmount = 0;
 
         Player player = superiorPlayer.asPlayer();
-        if(player == null)
+        if (player == null)
             return totalItemAmount;
 
         for (List<String> requiredStatistic : requiredStatistics.keySet()) {
             int requiredAmount = requiredStatistics.get(requiredStatistic);
             int statisticAmount = 0;
-            for(String statistic : requiredStatistic){
+            for (String statistic : requiredStatistic) {
                 int currentItemAmount = getStatisticAmount(player, statistic);
 
                 //Making sure to not exceed the required item amount
-                if(statisticAmount + currentItemAmount > requiredAmount)
+                if (statisticAmount + currentItemAmount > requiredAmount)
                     currentItemAmount = requiredAmount - statisticAmount;
 
                 //Summing the amount to a global variable
@@ -120,33 +120,33 @@ public final class StatisticsMissions extends Mission<Void> implements Listener 
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
-    public void onPlayerStatistic(PlayerStatisticIncrementEvent e){
+    public void onPlayerStatistic(PlayerStatisticIncrementEvent e) {
         SuperiorPlayer superiorPlayer = SuperiorSkyblockAPI.getPlayer(e.getPlayer());
 
-        if(!isMissionStatistic(e.getStatistic()) || !superiorSkyblock.getMissions().canCompleteNoProgress(superiorPlayer, this))
+        if (!isMissionStatistic(e.getStatistic()) || !superiorSkyblock.getMissions().canCompleteNoProgress(superiorPlayer, this))
             return;
 
         Bukkit.getScheduler().runTaskLaterAsynchronously(plugin, () -> {
-            if(canComplete(superiorPlayer))
+            if (canComplete(superiorPlayer))
                 SuperiorSkyblockAPI.getSuperiorSkyblock().getMissions().rewardMission(this, superiorPlayer, true);
         }, 2L);
     }
 
-    private boolean isMissionStatistic(Statistic statistic){
-        if(statistic == null)
+    private boolean isMissionStatistic(Statistic statistic) {
+        if (statistic == null)
             return false;
 
         for (List<String> requiredStatistic : requiredStatistics.keySet()) {
-            if(requiredStatistic.contains("ALL") || requiredStatistic.contains("all") || requiredStatistic.contains(statistic.name()))
+            if (requiredStatistic.contains("ALL") || requiredStatistic.contains("all") || requiredStatistic.contains(statistic.name()))
                 return true;
-            if(statistic.isSubstatistic() && requiredStatistic.stream().anyMatch(line -> line.contains(statistic.name())))
+            if (statistic.isSubstatistic() && requiredStatistic.stream().anyMatch(line -> line.contains(statistic.name())))
                 return true;
         }
 
         return false;
     }
 
-    private static int getStatisticAmount(Player player, String statisticsString){
+    private static int getStatisticAmount(Player player, String statisticsString) {
         String[] sections = statisticsString.split(":");
         int currentStatisticAmount = -1;
 
@@ -165,15 +165,16 @@ public final class StatisticsMissions extends Mission<Void> implements Listener 
                         currentStatisticAmount = player.getStatistic(statistic, entityType);
                 }
             }
-        }catch (Exception ignored){ }
+        } catch (Exception ignored) {
+        }
 
         return currentStatisticAmount;
     }
 
-    private static <T extends Enum<T>> T getEnumSafe(Class<T> clazz, String name){
-        try{
+    private static <T extends Enum<T>> T getEnumSafe(Class<T> clazz, String name) {
+        try {
             return Enum.valueOf(clazz, name);
-        }catch (Throwable ex){
+        } catch (Throwable ex) {
             return null;
         }
     }
