@@ -16,4 +16,5 @@ include 'ItemsMissions'
 include 'KillsMissions'
 include 'StatisticsMissions'
 include 'BrewingMissions'
+include 'FishingMissions'
 

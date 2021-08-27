@@ -1,0 +1,5 @@
+group 'FishingMissions'
+
+dependencies {
+    compileOnly 'org.spigotmc:v1_14_R1:latest'
+}
