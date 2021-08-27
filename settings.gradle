@@ -15,3 +15,5 @@ include 'IslandMissions'
 include 'ItemsMissions'
 include 'KillsMissions'
 include 'StatisticsMissions'
+include 'BrewingMissions'
+
