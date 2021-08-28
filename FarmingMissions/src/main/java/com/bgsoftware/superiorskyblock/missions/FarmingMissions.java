@@ -49,6 +49,7 @@ public final class FarmingMissions extends Mission<FarmingMissions.FarmingTracke
             .put("CARROT", 7)
             .put("CROPS", 7)
             .put("WHEAT_SEEDS", 7)
+            .put("WHEAT", 7)
             .put("POTATO", 7)
             .put("POTATOES", 7)
             .put("BEETROOT_SEEDS", 7)
