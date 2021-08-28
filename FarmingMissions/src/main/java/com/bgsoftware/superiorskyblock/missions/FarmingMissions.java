@@ -2,6 +2,7 @@ package com.bgsoftware.superiorskyblock.missions;
 
 import com.bgsoftware.superiorskyblock.api.SuperiorSkyblock;
 import com.bgsoftware.superiorskyblock.api.SuperiorSkyblockAPI;
+import com.bgsoftware.superiorskyblock.api.island.Island;
 import com.bgsoftware.superiorskyblock.api.missions.Mission;
 import com.bgsoftware.superiorskyblock.api.missions.MissionLoadException;
 import com.bgsoftware.superiorskyblock.api.wrappers.SuperiorPlayer;
@@ -13,6 +14,7 @@ import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.configuration.ConfigurationSection;
+import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
@@ -153,8 +155,8 @@ public final class FarmingMissions extends Mission<FarmingMissions.FarmingTracke
 
                 insertData(superiorPlayer, farmingTracker);
 
-                for (String key : section.getConfigurationSection(uuid).getKeys(false)) {
-                    farmingTracker.farmingTracker.put(key, section.getInt(uuid + "." + key));
+                for (String key : grownPlants.getConfigurationSection(uuid).getKeys(false)) {
+                    farmingTracker.farmingTracker.put(key, grownPlants.getInt(uuid + "." + key));
                 }
             }
         }
@@ -165,7 +167,7 @@ public final class FarmingMissions extends Mission<FarmingMissions.FarmingTracke
                 Location location = getLocation(locationKey);
                 try {
                     if (location != null)
-                        playerPlacedPlants.put(location, UUID.fromString(section.getString("placed-plants." + locationKey)));
+                        playerPlacedPlants.put(location, UUID.fromString(placedPlants.getString(locationKey)));
                 } catch (IllegalArgumentException ignored) {
                 }
             }
@@ -207,7 +209,12 @@ public final class FarmingMissions extends Mission<FarmingMissions.FarmingTracke
         if (!isMissionPlant(blockType))
             return;
 
-        playerPlacedPlants.put(e.getBlock().getLocation(), e.getPlayer().getUniqueId());
+        UUID placerUUID = getPlacerUUID(e.getPlayer());
+
+        if (placerUUID == null)
+            return;
+
+        playerPlacedPlants.put(e.getBlock().getLocation(), placerUUID);
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
@@ -271,7 +278,18 @@ public final class FarmingMissions extends Mission<FarmingMissions.FarmingTracke
         if (placerUUID == null)
             return;
 
-        SuperiorPlayer superiorPlayer = SuperiorSkyblockAPI.getPlayer(placerUUID);
+        SuperiorPlayer superiorPlayer;
+
+        if (getIslandMission()) {
+            Island island = SuperiorSkyblockAPI.getIslandByUUID(placerUUID);
+
+            if (island == null)
+                return;
+
+            superiorPlayer = island.getOwner();
+        } else {
+            superiorPlayer = SuperiorSkyblockAPI.getPlayer(placerUUID);
+        }
 
         if (!superiorSkyblock.getMissions().canCompleteNoProgress(superiorPlayer, this))
             return;
@@ -283,6 +301,21 @@ public final class FarmingMissions extends Mission<FarmingMissions.FarmingTracke
             if (canComplete(superiorPlayer))
                 SuperiorSkyblockAPI.getSuperiorSkyblock().getMissions().rewardMission(this, superiorPlayer, true);
         }, 2L);
+    }
+
+    private UUID getPlacerUUID(Player player) {
+        SuperiorPlayer superiorPlayer = SuperiorSkyblockAPI.getPlayer(player);
+
+        if (getIslandMission()) {
+            Island island = superiorPlayer.getIsland();
+
+            if (island == null)
+                return null;
+
+            return island.getUniqueId();
+        } else {
+            return superiorPlayer.getUniqueId();
+        }
     }
 
     private String parseLocation(Location location) {
