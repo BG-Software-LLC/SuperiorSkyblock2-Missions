@@ -11,6 +11,7 @@ import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
+import org.bukkit.block.BlockFace;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -44,6 +45,10 @@ public final class FarmingMissions extends Mission<FarmingMissions.FarmingTracke
     private static final Pattern percentagePattern = Pattern.compile("(.*)\\{percentage_(.+?)}(.*)"),
             valuePattern = Pattern.compile("(.*)\\{value_(.+?)}(.*)");
 
+    private static final BlockFace[] NEARBY_BLOCKS = new BlockFace[]{
+            BlockFace.EAST, BlockFace.WEST, BlockFace.NORTH, BlockFace.SOUTH
+    };
+
     private static final Map<String, Integer> MAXIMUM_AGES = new ImmutableMap.Builder<String, Integer>()
             .put("CARROTS", 7)
             .put("CARROT", 7)
@@ -52,7 +57,8 @@ public final class FarmingMissions extends Mission<FarmingMissions.FarmingTracke
             .put("WHEAT", 7)
             .put("POTATO", 7)
             .put("POTATOES", 7)
-            .put("BEETROOT_SEEDS", 7)
+            .put("BEETROOT_SEEDS", 3)
+            .put("BEETROOTS", 3)
             .put("COCOA", 2)
             .put("COCOA_BEANS", 2)
             .build();
@@ -189,6 +195,15 @@ public final class FarmingMissions extends Mission<FarmingMissions.FarmingTracke
     public void onBlockPlace(BlockPlaceEvent e) {
         Material blockType = e.getBlock().getType();
 
+        switch (blockType) {
+            case PUMPKIN_STEM:
+                blockType = Material.MELON;
+                break;
+            case MELON_STEM:
+                blockType = Material.PUMPKIN;
+                break;
+        }
+
         if (!isMissionPlant(blockType))
             return;
 
@@ -226,13 +241,30 @@ public final class FarmingMissions extends Mission<FarmingMissions.FarmingTracke
         if (!isMissionPlant(blockType))
             return;
 
-        if(age < MAXIMUM_AGES.getOrDefault(blockType.name(), 0))
+        if (age < MAXIMUM_AGES.getOrDefault(blockType.name(), 0))
             return;
 
         Location placedBlockLocation = e.getBlock().getLocation();
 
-        if(blockType.isSolid())
-            placedBlockLocation = placedBlockLocation.subtract(0, 1, 0);
+        switch (blockType) {
+            case CACTUS:
+            case SUGAR_CANE:
+                placedBlockLocation = placedBlockLocation.subtract(0, 1, 0);
+                break;
+            case MELON:
+            case PUMPKIN:
+                Material stemType = blockType == Material.PUMPKIN ? Material.PUMPKIN_STEM : Material.MELON_STEM;
+
+                for (BlockFace blockFace : NEARBY_BLOCKS) {
+                    Block nearbyBlock = e.getBlock().getRelative(blockFace);
+                    if (nearbyBlock.getType() == stemType) {
+                        placedBlockLocation = nearbyBlock.getLocation();
+                        break;
+                    }
+                }
+
+                break;
+        }
 
         UUID placerUUID = playerPlacedPlants.get(placedBlockLocation);
 
