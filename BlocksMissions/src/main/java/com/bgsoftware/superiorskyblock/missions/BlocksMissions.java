@@ -170,7 +170,7 @@ public final class BlocksMissions extends Mission<BlocksMissions.BlocksTracker> 
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onBlockBreak(BlockBreakEvent e) {
-        if (blocksPlacement)
+        if (!blocksPlacement)
             handleBlockBreak(e.getBlock(), e.getPlayer());
     }
 
@@ -188,7 +188,7 @@ public final class BlocksMissions extends Mission<BlocksMissions.BlocksTracker> 
     public void onBlockPlace(BlockPlaceEvent e) {
         placedBlocks.put(e.getBlock().getLocation(), e.getBlock().getType());
 
-        if (!blocksPlacement)
+        if (blocksPlacement)
             return;
 
         Material blockType = e.getBlock().getType();
