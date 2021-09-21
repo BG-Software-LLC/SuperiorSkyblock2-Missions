@@ -16,6 +16,7 @@ import com.bgsoftware.superiorskyblock.api.events.IslandKickEvent;
 import com.bgsoftware.superiorskyblock.api.events.IslandLeaveEvent;
 import com.bgsoftware.superiorskyblock.api.events.IslandLeaveProtectedEvent;
 import com.bgsoftware.superiorskyblock.api.events.IslandQuitEvent;
+import com.bgsoftware.superiorskyblock.api.events.IslandSchematicPasteEvent;
 import com.bgsoftware.superiorskyblock.api.events.IslandTransferEvent;
 import com.bgsoftware.superiorskyblock.api.events.IslandUncoopPlayerEvent;
 import com.bgsoftware.superiorskyblock.api.events.IslandWorthCalculatedEvent;
@@ -183,6 +184,11 @@ public final class IslandMissions extends Mission<Boolean> implements Listener {
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onIslandWorthUpdate(IslandWorthUpdateEvent e) {
+        tryComplete(e, e.getIsland().getOwner());
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onIslandWorthUpdate(IslandSchematicPasteEvent e) {
         tryComplete(e, e.getIsland().getOwner());
     }
 
