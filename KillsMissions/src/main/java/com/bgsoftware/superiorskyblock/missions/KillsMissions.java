@@ -185,10 +185,10 @@ public final class KillsMissions extends Mission<KillsMissions.KillsTracker> imp
         KillsTracker killsTracker = getOrCreate(superiorPlayer, s -> new KillsTracker());
         killsTracker.track(e.getEntity().getType().name(), getEntityAmount(e.getEntity()));
 
-        Bukkit.getScheduler().runTaskLaterAsynchronously(plugin, () -> {
+        Bukkit.getScheduler().runTaskLaterAsynchronously(plugin, () -> superiorPlayer.runIfOnline(player -> {
             if (canComplete(superiorPlayer))
                 SuperiorSkyblockAPI.getSuperiorSkyblock().getMissions().rewardMission(this, superiorPlayer, true);
-        }, 2L);
+        }), 2L);
     }
 
     private int getEntityAmount(LivingEntity entity) {

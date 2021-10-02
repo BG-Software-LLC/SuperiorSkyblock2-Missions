@@ -297,10 +297,10 @@ public final class FarmingMissions extends Mission<FarmingMissions.FarmingTracke
         FarmingTracker farmingTracker = getOrCreate(superiorPlayer, s -> new FarmingTracker());
         farmingTracker.track(blockType.name());
 
-        Bukkit.getScheduler().runTaskLaterAsynchronously(plugin, () -> {
+        Bukkit.getScheduler().runTaskLaterAsynchronously(plugin, () -> superiorPlayer.runIfOnline(player -> {
             if (canComplete(superiorPlayer))
                 SuperiorSkyblockAPI.getSuperiorSkyblock().getMissions().rewardMission(this, superiorPlayer, true);
-        }, 2L);
+        }), 2L);
     }
 
     private UUID getPlacerUUID(Player player) {

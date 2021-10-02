@@ -126,10 +126,10 @@ public final class StatisticsMissions extends Mission<Void> implements Listener 
         if (!isMissionStatistic(e.getStatistic()) || !superiorSkyblock.getMissions().canCompleteNoProgress(superiorPlayer, this))
             return;
 
-        Bukkit.getScheduler().runTaskLaterAsynchronously(plugin, () -> {
+        Bukkit.getScheduler().runTaskLaterAsynchronously(plugin, () -> superiorPlayer.runIfOnline(player -> {
             if (canComplete(superiorPlayer))
                 SuperiorSkyblockAPI.getSuperiorSkyblock().getMissions().rewardMission(this, superiorPlayer, true);
-        }, 2L);
+        }), 2L);
     }
 
     private boolean isMissionStatistic(Statistic statistic) {

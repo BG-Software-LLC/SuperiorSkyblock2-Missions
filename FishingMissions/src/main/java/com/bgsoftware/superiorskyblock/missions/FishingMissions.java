@@ -204,10 +204,10 @@ public final class FishingMissions extends Mission<FishingMissions.FishingTracke
         FishingTracker blocksTracker = getOrCreate(superiorPlayer, s -> new FishingTracker());
         blocksTracker.trackItem(itemStack);
 
-        Bukkit.getScheduler().runTaskLaterAsynchronously(plugin, () -> {
+        Bukkit.getScheduler().runTaskLaterAsynchronously(plugin, () -> superiorPlayer.runIfOnline(player -> {
             if (canComplete(superiorPlayer))
                 SuperiorSkyblockAPI.getSuperiorSkyblock().getMissions().rewardMission(this, superiorPlayer, true);
-        }, 2L);
+        }), 2L);
     }
 
     private boolean isMissionItem(ItemStack itemStack) {

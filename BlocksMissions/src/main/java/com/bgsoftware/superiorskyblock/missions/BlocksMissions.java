@@ -285,10 +285,10 @@ public final class BlocksMissions extends Mission<BlocksMissions.BlocksTracker> 
         BlocksTracker blocksTracker = getOrCreate(superiorPlayer, s -> new BlocksTracker());
         blocksTracker.trackBlock(blockType, data, amount);
 
-        Bukkit.getScheduler().runTaskLaterAsynchronously(plugin, () -> {
+        Bukkit.getScheduler().runTaskLaterAsynchronously(plugin, () -> superiorPlayer.runIfOnline(_player -> {
             if (canComplete(superiorPlayer))
                 superiorSkyblock.getMissions().rewardMission(this, superiorPlayer, true);
-        }, 2L);
+        }), 2L);
     }
 
     private int getBlockAmount(Player player, Block block) {

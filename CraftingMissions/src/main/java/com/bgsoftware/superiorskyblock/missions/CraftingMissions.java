@@ -192,10 +192,10 @@ public final class CraftingMissions extends Mission<CraftingMissions.CraftingsTr
         CraftingsTracker blocksTracker = getOrCreate(superiorPlayer, s -> new CraftingsTracker());
         blocksTracker.trackItem(itemStack);
 
-        Bukkit.getScheduler().runTaskLaterAsynchronously(plugin, () -> {
+        Bukkit.getScheduler().runTaskLaterAsynchronously(plugin, () -> superiorPlayer.runIfOnline(player -> {
             if (canComplete(superiorPlayer))
                 SuperiorSkyblockAPI.getSuperiorSkyblock().getMissions().rewardMission(this, superiorPlayer, true);
-        }, 2L);
+        }), 2L);
     }
 
     private static int countItems(HumanEntity humanEntity, ItemStack itemStack) {
