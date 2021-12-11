@@ -256,7 +256,7 @@ public final class FarmingMissions extends Mission<FarmingMissions.FarmingTracke
         switch (blockType) {
             case CACTUS:
             case SUGAR_CANE:
-                placedBlockLocation = placedBlockLocation.subtract(0, 1, 0);
+                placedBlockLocation = getLowestBlock(e.getBlock());
                 break;
             case MELON:
             case PUMPKIN:
@@ -301,6 +301,18 @@ public final class FarmingMissions extends Mission<FarmingMissions.FarmingTracke
             if (canComplete(superiorPlayer))
                 SuperiorSkyblockAPI.getSuperiorSkyblock().getMissions().rewardMission(this, superiorPlayer, true);
         }), 2L);
+    }
+
+    private static Location getLowestBlock(Block original) {
+        Block lastSimilarBlock = original.getRelative(BlockFace.DOWN);
+
+        Material originalType = lastSimilarBlock.getType();
+
+        while (lastSimilarBlock.getType() == originalType) {
+            lastSimilarBlock = lastSimilarBlock.getRelative(BlockFace.DOWN);
+        }
+
+        return lastSimilarBlock.getLocation().add(0, 1, 0);
     }
 
     private UUID getPlacerUUID(Player player) {
