@@ -13,6 +13,7 @@ import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
+import org.bukkit.block.BlockState;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -23,6 +24,7 @@ import org.bukkit.event.block.BlockGrowEvent;
 import org.bukkit.event.block.BlockPistonExtendEvent;
 import org.bukkit.event.block.BlockPistonRetractEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
+import org.bukkit.event.block.BlockSpreadEvent;
 import org.bukkit.event.entity.EntityExplodeEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
@@ -195,18 +197,21 @@ public final class FarmingMissions extends Mission<FarmingMissions.FarmingTracke
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onBlockPlace(BlockPlaceEvent e) {
-        Material blockType = e.getBlock().getType();
+        String blockTypeName = e.getBlock().getType().name();
 
-        switch (blockType) {
-            case PUMPKIN_STEM:
-                blockType = Material.MELON;
+        switch (blockTypeName) {
+            case "PUMPKIN_STEM":
+                blockTypeName = "MELON";
                 break;
-            case MELON_STEM:
-                blockType = Material.PUMPKIN;
+            case "MELON_STEM":
+                blockTypeName = "PUMPKIN";
+                break;
+            case "BAMBOO_SAPLING":
+                blockTypeName = "BAMBOO";
                 break;
         }
 
-        if (!isMissionPlant(blockType))
+        if (!isMissionPlant(blockTypeName))
             return;
 
         UUID placerUUID = getPlacerUUID(e.getPlayer());
@@ -241,29 +246,39 @@ public final class FarmingMissions extends Mission<FarmingMissions.FarmingTracke
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onPlantGrow(BlockSpreadEvent e) {
+        handlePlantGrow(e.getBlock(), e.getNewState());
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onPlantGrow(BlockGrowEvent e) {
-        Material blockType = e.getNewState().getType();
-        int age = e.getNewState().getRawData();
+        handlePlantGrow(e.getBlock(), e.getNewState());
+    }
 
-        if (!isMissionPlant(blockType))
+    private void handlePlantGrow(Block plantBlock, BlockState newState) {
+        String blockTypeName = newState.getType().name();
+        int age = newState.getRawData();
+
+        if (!isMissionPlant(blockTypeName))
             return;
 
-        if (age < MAXIMUM_AGES.getOrDefault(blockType.name(), 0))
+        if (age < MAXIMUM_AGES.getOrDefault(blockTypeName, 0))
             return;
 
-        Location placedBlockLocation = e.getBlock().getLocation();
+        Location placedBlockLocation = plantBlock.getLocation();
 
-        switch (blockType) {
-            case CACTUS:
-            case SUGAR_CANE:
-                placedBlockLocation = getLowestBlock(e.getBlock());
+        switch (blockTypeName) {
+            case "CACTUS":
+            case "SUGAR_CANE":
+            case "BAMBOO":
+                placedBlockLocation = getLowestBlock(plantBlock);
                 break;
-            case MELON:
-            case PUMPKIN:
-                Material stemType = blockType == Material.PUMPKIN ? Material.PUMPKIN_STEM : Material.MELON_STEM;
+            case "MELON":
+            case "PUMPKIN":
+                Material stemType = blockTypeName.equals("PUMPKIN") ? Material.PUMPKIN_STEM : Material.MELON_STEM;
 
                 for (BlockFace blockFace : NEARBY_BLOCKS) {
-                    Block nearbyBlock = e.getBlock().getRelative(blockFace);
+                    Block nearbyBlock = plantBlock.getRelative(blockFace);
                     if (nearbyBlock.getType() == stemType) {
                         placedBlockLocation = nearbyBlock.getLocation();
                         break;
@@ -295,7 +310,7 @@ public final class FarmingMissions extends Mission<FarmingMissions.FarmingTracke
             return;
 
         FarmingTracker farmingTracker = getOrCreate(superiorPlayer, s -> new FarmingTracker());
-        farmingTracker.track(blockType.name());
+        farmingTracker.track(blockTypeName);
 
         Bukkit.getScheduler().runTaskLaterAsynchronously(plugin, () -> superiorPlayer.runIfOnline(player -> {
             if (canComplete(superiorPlayer))
@@ -348,12 +363,12 @@ public final class FarmingMissions extends Mission<FarmingMissions.FarmingTracke
         }
     }
 
-    private boolean isMissionPlant(Material blockType) {
-        if (blockType == null)
+    private boolean isMissionPlant(String blockTypeName) {
+        if (blockTypeName == null)
             return false;
 
         for (List<String> requiredPlant : requiredPlants.keySet()) {
-            if (requiredPlant.contains(blockType.name()) || requiredPlant.contains("all") || requiredPlant.contains("ALL"))
+            if (requiredPlant.contains(blockTypeName) || requiredPlant.contains("all") || requiredPlant.contains("ALL"))
                 return true;
         }
 
