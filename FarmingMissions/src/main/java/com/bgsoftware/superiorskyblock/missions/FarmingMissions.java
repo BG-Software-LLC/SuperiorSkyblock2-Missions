@@ -26,6 +26,7 @@ import org.bukkit.event.block.BlockPistonRetractEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.block.BlockSpreadEvent;
 import org.bukkit.event.entity.EntityExplodeEvent;
+import org.bukkit.event.world.StructureGrowEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -246,8 +247,14 @@ public final class FarmingMissions extends Mission<FarmingMissions.FarmingTracke
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
-    public void onPlantGrow(BlockSpreadEvent e) {
+    public void onBambooGrow(BlockSpreadEvent e) {
         handlePlantGrow(e.getBlock(), e.getNewState());
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onPlantGrow(StructureGrowEvent e) {
+        Block block = e.getLocation().getBlock();
+        handlePlantGrow(block, block.getState());
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
