@@ -1,6 +1,6 @@
 group 'BlocksMissions'
 
 dependencies {
-    compileOnly "com.bgsoftware:WildStackerAPI:latest"
-    compileOnly "com.bgsoftware:WildToolsAPI:latest"
+    compileOnly "com.bgsoftware:WildStackerAPI:3.6.3"
+    compileOnly "com.bgsoftware:WildToolsAPI:2.11.4"
 }

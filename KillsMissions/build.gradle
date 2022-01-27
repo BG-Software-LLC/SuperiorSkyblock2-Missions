@@ -1,5 +1,5 @@
 group 'KillsMissions'
 
 dependencies {
-    compileOnly 'com.bgsoftware:WildStackerAPI:latest'
+    compileOnly 'com.bgsoftware:WildStackerAPI:3.6.3'
 }
