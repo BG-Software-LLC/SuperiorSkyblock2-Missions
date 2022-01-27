@@ -186,10 +186,10 @@ public final class BlocksMissions extends Mission<BlocksMissions.BlocksTracker> 
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onBlockPlace(BlockPlaceEvent e) {
-        placedBlocks.put(e.getBlock().getLocation(), e.getBlock().getType());
-
-        if (blocksPlacement)
+        if (!blocksPlacement)
             return;
+
+        Material oldPlacedBlock = placedBlocks.put(e.getBlock().getLocation(), e.getBlock().getType());
 
         Material blockType = e.getBlock().getType();
         short blockData = 0;
@@ -202,7 +202,7 @@ public final class BlocksMissions extends Mission<BlocksMissions.BlocksTracker> 
 
         SuperiorPlayer superiorPlayer = SuperiorSkyblockAPI.getPlayer(e.getPlayer());
 
-        boolean blockReplace = placedBlocks.get(e.getBlock().getLocation()) == e.getBlock().getType();
+        boolean blockReplace = oldPlacedBlock == e.getBlock().getType();
 
         if (isBarrel(e.getBlock()) || (!replaceBlocks && blockReplace) || !isMissionBlock(blockType, blockData) ||
                 !superiorSkyblock.getMissions().hasAllRequiredMissions(superiorPlayer, this))
