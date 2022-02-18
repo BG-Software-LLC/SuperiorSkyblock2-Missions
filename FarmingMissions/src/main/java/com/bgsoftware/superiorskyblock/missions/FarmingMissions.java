@@ -202,10 +202,10 @@ public final class FarmingMissions extends Mission<FarmingMissions.FarmingTracke
 
         switch (blockTypeName) {
             case "PUMPKIN_STEM":
-                blockTypeName = "MELON";
+                blockTypeName = "PUMPKIN";
                 break;
             case "MELON_STEM":
-                blockTypeName = "PUMPKIN";
+                blockTypeName = "MELON";
                 break;
             case "BAMBOO_SAPLING":
                 blockTypeName = "BAMBOO";
