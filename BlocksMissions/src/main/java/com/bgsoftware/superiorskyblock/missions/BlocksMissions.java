@@ -186,10 +186,14 @@ public final class BlocksMissions extends Mission<BlocksMissions.BlocksTracker> 
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onBlockPlace(BlockPlaceEvent e) {
-        if (!blocksPlacement)
+        if(!onlyNatural && !blocksPlacement)
             return;
 
+        // If onlyNatural is enabled, we want to track placed blocks.
         Material oldPlacedBlock = placedBlocks.put(e.getBlock().getLocation(), e.getBlock().getType());
+
+        if (!blocksPlacement)
+            return;
 
         Material blockType = e.getBlock().getType();
         short blockData = 0;
