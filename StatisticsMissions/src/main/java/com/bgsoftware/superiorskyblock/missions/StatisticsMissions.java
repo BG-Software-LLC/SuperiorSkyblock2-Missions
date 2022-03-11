@@ -6,6 +6,7 @@ import com.bgsoftware.superiorskyblock.api.missions.Mission;
 import com.bgsoftware.superiorskyblock.api.missions.MissionLoadException;
 import com.bgsoftware.superiorskyblock.api.wrappers.SuperiorPlayer;
 import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.Statistic;
 import org.bukkit.configuration.ConfigurationSection;
@@ -15,15 +16,24 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerStatisticIncrementEvent;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.plugin.java.JavaPlugin;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public final class StatisticsMissions extends Mission<Void> implements Listener {
 
     private static final SuperiorSkyblock superiorSkyblock = SuperiorSkyblockAPI.getSuperiorSkyblock();
+
+    private static final Pattern percentagePattern = Pattern.compile("(.*)\\{percentage_(.+?)}(.*)"),
+            valuePattern = Pattern.compile("(.*)\\{value_(.+?)}(.*)");
 
     private final Map<List<String>, Integer> requiredStatistics = new HashMap<>();
 
@@ -119,6 +129,28 @@ public final class StatisticsMissions extends Mission<Void> implements Listener 
         clearData(superiorPlayer);
     }
 
+    @Override
+    public void formatItem(SuperiorPlayer superiorPlayer, ItemStack itemStack) {
+        Player player = superiorPlayer.asPlayer();
+
+        if (player == null)
+            return;
+
+        ItemMeta itemMeta = itemStack.getItemMeta();
+
+        if (itemMeta.hasDisplayName())
+            itemMeta.setDisplayName(parsePlaceholders(player, itemMeta.getDisplayName()));
+
+        if (itemMeta.hasLore()) {
+            List<String> lore = new ArrayList<>();
+            for (String line : itemMeta.getLore())
+                lore.add(parsePlaceholders(player, line));
+            itemMeta.setLore(lore);
+        }
+
+        itemStack.setItemMeta(itemMeta);
+    }
+
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onPlayerStatistic(PlayerStatisticIncrementEvent e) {
         SuperiorPlayer superiorPlayer = SuperiorSkyblockAPI.getPlayer(e.getPlayer());
@@ -144,6 +176,38 @@ public final class StatisticsMissions extends Mission<Void> implements Listener 
         }
 
         return false;
+    }
+
+    private String parsePlaceholders(Player player, String line) {
+        Matcher matcher = percentagePattern.matcher(line);
+
+        if (matcher.matches()) {
+            String requiredStatistic = matcher.group(2).toUpperCase();
+            int value = getStatisticAmount(player, requiredStatistic);
+
+            Optional<Map.Entry<List<String>, Integer>> entry = requiredStatistics.entrySet().stream()
+                    .filter(e -> e.getKey().contains(requiredStatistic)).findAny();
+
+            if (entry.isPresent()) {
+                line = line.replace("{percentage_" + matcher.group(2) + "}",
+                        "" + (value * 100) / entry.get().getValue());
+            }
+        }
+
+        if ((matcher = valuePattern.matcher(line)).matches()) {
+            String requiredStatistic = matcher.group(2).toUpperCase();
+            int value = getStatisticAmount(player, requiredStatistic);
+
+            Optional<Map.Entry<List<String>, Integer>> entry = requiredStatistics.entrySet().stream()
+                    .filter(e -> e.getKey().contains(requiredStatistic)).findAny();
+
+            if (entry.isPresent()) {
+                line = line.replace("{value_" + matcher.group(2) + "}",
+                        "" + value);
+            }
+        }
+
+        return ChatColor.translateAlternateColorCodes('&', line);
     }
 
     private static int getStatisticAmount(Player player, String statisticsString) {
