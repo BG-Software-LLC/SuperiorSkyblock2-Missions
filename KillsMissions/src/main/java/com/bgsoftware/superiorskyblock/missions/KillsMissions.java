@@ -137,6 +137,9 @@ public final class KillsMissions extends Mission<KillsMissions.KillsTracker> imp
     public void formatItem(SuperiorPlayer superiorPlayer, ItemStack itemStack) {
         KillsTracker killsTracker = getOrCreate(superiorPlayer, s -> new KillsTracker());
 
+        if(killsTracker == null)
+            return;
+
         ItemMeta itemMeta = itemStack.getItemMeta();
 
         if (itemMeta.hasDisplayName())
@@ -183,6 +186,10 @@ public final class KillsMissions extends Mission<KillsMissions.KillsTracker> imp
             return;
 
         KillsTracker killsTracker = getOrCreate(superiorPlayer, s -> new KillsTracker());
+
+        if(killsTracker == null)
+            return;
+
         killsTracker.track(e.getEntity().getType().name(), getEntityAmount(e.getEntity()));
 
         Bukkit.getScheduler().runTaskLaterAsynchronously(plugin, () -> superiorPlayer.runIfOnline(player -> {

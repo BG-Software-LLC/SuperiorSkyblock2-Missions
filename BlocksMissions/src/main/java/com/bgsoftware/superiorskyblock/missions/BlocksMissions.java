@@ -201,6 +201,9 @@ public final class BlocksMissions extends Mission<BlocksTracker> implements List
     public void formatItem(SuperiorPlayer superiorPlayer, ItemStack itemStack) {
         BlocksTracker blocksTracker = getOrCreate(superiorPlayer, s -> new BlocksTracker());
 
+        if(blocksTracker == null)
+            return;
+
         ItemMeta itemMeta = itemStack.getItemMeta();
 
         if (itemMeta.hasDisplayName())
@@ -221,6 +224,9 @@ public final class BlocksMissions extends Mission<BlocksTracker> implements List
         SuperiorPlayer superiorPlayer = SuperiorSkyblockAPI.getPlayer(e.getPlayer());
 
         BlocksTracker blocksTracker = getOrCreate(superiorPlayer, s -> new BlocksTracker());
+
+        if(blocksTracker == null)
+            return;
 
         if (blocksPlacement) {
             if (!replaceBlocks) {
@@ -251,7 +257,11 @@ public final class BlocksMissions extends Mission<BlocksTracker> implements List
             return;
 
         SuperiorPlayer superiorPlayer = SuperiorSkyblockAPI.getPlayer(e.getPlayer());
+
         BlocksTracker blocksTracker = getOrCreate(superiorPlayer, s -> new BlocksTracker());
+
+        if(blocksTracker == null)
+            return;
 
         blocksTracker.untrackBlock(BlocksTracker.TrackingType.BROKEN_BLOCKS, e.getBlock());
 
@@ -304,7 +314,13 @@ public final class BlocksMissions extends Mission<BlocksTracker> implements List
 
         @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
         public void onCuboidUse(CuboidWandUseEvent e) {
-            BlocksTracker blocksTracker = getOrCreate(SuperiorSkyblockAPI.getPlayer(e.getPlayer()), s -> new BlocksTracker());
+            SuperiorPlayer superiorPlayer = SuperiorSkyblockAPI.getPlayer(e.getPlayer());
+
+            BlocksTracker blocksTracker = getOrCreate(superiorPlayer, s -> new BlocksTracker());
+
+            if(blocksTracker == null)
+                return;
+
             for (Location location : e.getBlocks()) {
                 Block block = location.getBlock();
                 handleBlockBreak(block, e.getPlayer());
@@ -361,6 +377,10 @@ public final class BlocksMissions extends Mission<BlocksTracker> implements List
             return;
 
         BlocksTracker blocksTracker = getOrCreate(superiorPlayer, s -> new BlocksTracker());
+
+        if(blocksTracker == null)
+            return;
+
         blocksTracker.countBlock(getBlockKey(blockType, data), amount);
         blocksTracker.countBlock("ALL", amount);
 

@@ -178,6 +178,9 @@ public final class BrewingMissions extends Mission<BrewingMissions.BrewingTracke
     public void formatItem(SuperiorPlayer superiorPlayer, ItemStack itemStack) {
         BrewingTracker killsTracker = getOrCreate(superiorPlayer, s -> new BrewingTracker());
 
+        if(killsTracker == null)
+            return;
+
         ItemMeta itemMeta = itemStack.getItemMeta();
 
         if (itemMeta.hasDisplayName())
@@ -246,13 +249,17 @@ public final class BrewingMissions extends Mission<BrewingMissions.BrewingTracke
 
         SuperiorPlayer superiorPlayer = SuperiorSkyblockAPI.getPlayer(player);
 
+        BrewingTracker brewingTracker = getOrCreate(superiorPlayer, s -> new BrewingTracker());
+
+        if(brewingTracker == null)
+            return;
+
         for (int i = 0; i < 3; ++i) {
             if (checkSlot.test(i) && brewItems[i]) {
                 brewItems[i] = false;
 
                 ItemStack brewItem = inventory.getItem(i);
 
-                BrewingTracker brewingTracker = getOrCreate(superiorPlayer, s -> new BrewingTracker());
                 brewingTracker.track(brewItem, brewItem.getAmount());
             }
         }

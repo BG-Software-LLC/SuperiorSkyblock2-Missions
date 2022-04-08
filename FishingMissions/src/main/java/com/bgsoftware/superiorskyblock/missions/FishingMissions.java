@@ -165,6 +165,9 @@ public final class FishingMissions extends Mission<FishingMissions.FishingTracke
     public void formatItem(SuperiorPlayer superiorPlayer, ItemStack itemStack) {
         FishingTracker fishingTracker = getOrCreate(superiorPlayer, s -> new FishingTracker());
 
+        if(fishingTracker == null)
+            return;
+
         ItemMeta itemMeta = itemStack.getItemMeta();
 
         if (itemMeta.hasDisplayName())
@@ -202,6 +205,10 @@ public final class FishingMissions extends Mission<FishingMissions.FishingTracke
 
     private void trackItem(SuperiorPlayer superiorPlayer, ItemStack itemStack) {
         FishingTracker blocksTracker = getOrCreate(superiorPlayer, s -> new FishingTracker());
+
+        if(blocksTracker == null)
+            return;
+
         blocksTracker.trackItem(itemStack);
 
         Bukkit.getScheduler().runTaskLaterAsynchronously(plugin, () -> superiorPlayer.runIfOnline(player -> {

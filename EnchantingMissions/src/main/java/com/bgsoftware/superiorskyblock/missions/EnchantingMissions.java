@@ -134,6 +134,9 @@ public final class EnchantingMissions extends Mission<EnchantingMissions.Enchant
     public void formatItem(SuperiorPlayer superiorPlayer, ItemStack itemStack) {
         EnchantsTracker enchantsTracker = getOrCreate(superiorPlayer, s -> new EnchantsTracker());
 
+        if(enchantsTracker == null)
+            return;
+
         ItemMeta itemMeta = itemStack.getItemMeta();
 
         if (itemMeta.hasDisplayName())
@@ -218,6 +221,10 @@ public final class EnchantingMissions extends Mission<EnchantingMissions.Enchant
             return;
 
         EnchantsTracker enchantsTracker = getOrCreate(superiorPlayer, s -> new EnchantsTracker());
+
+        if(enchantsTracker == null)
+            return;
+
         enchantsTracker.track(itemStack);
 
         Bukkit.getScheduler().runTaskLaterAsynchronously(plugin, () -> superiorPlayer.runIfOnline(_player -> {

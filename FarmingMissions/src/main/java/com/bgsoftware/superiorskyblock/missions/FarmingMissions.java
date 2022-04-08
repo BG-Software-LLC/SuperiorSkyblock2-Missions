@@ -181,6 +181,9 @@ public final class FarmingMissions extends Mission<FarmingMissions.FarmingTracke
     public void formatItem(SuperiorPlayer superiorPlayer, ItemStack itemStack) {
         FarmingTracker farmingTracker = getOrCreate(superiorPlayer, s -> new FarmingTracker());
 
+        if(farmingTracker == null)
+            return;
+
         ItemMeta itemMeta = itemStack.getItemMeta();
 
         if (itemMeta.hasDisplayName())
@@ -317,6 +320,10 @@ public final class FarmingMissions extends Mission<FarmingMissions.FarmingTracke
             return;
 
         FarmingTracker farmingTracker = getOrCreate(superiorPlayer, s -> new FarmingTracker());
+
+        if(farmingTracker == null)
+            return;
+
         farmingTracker.track(blockTypeName);
 
         Bukkit.getScheduler().runTaskLaterAsynchronously(plugin, () -> superiorPlayer.runIfOnline(player -> {
