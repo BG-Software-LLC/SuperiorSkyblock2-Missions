@@ -37,6 +37,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.regex.Matcher;
@@ -70,7 +71,7 @@ public final class FarmingMissions extends Mission<FarmingMissions.FarmingTracke
 
     private JavaPlugin plugin;
     private final Map<List<String>, Integer> requiredPlants = new HashMap<>();
-    private final Map<Location, UUID> playerPlacedPlants = new HashMap<>();
+    private final Map<BlockPosition, UUID> playerPlacedPlants = new HashMap<>();
     private boolean resetAfterFinish;
 
     @Override
@@ -143,8 +144,9 @@ public final class FarmingMissions extends Mission<FarmingMissions.FarmingTracke
                 section.set("grown-plants." + uuid + "." + brokenEntry.getKey(), brokenEntry.getValue());
             }
         }
-        for (Map.Entry<Location, UUID> placedBlock : playerPlacedPlants.entrySet())
-            section.set("placed-plants." + parseLocation(placedBlock.getKey()), placedBlock.getValue().toString());
+        for (Map.Entry<BlockPosition, UUID> placedBlock : playerPlacedPlants.entrySet()) {
+            section.set("placed-plants." + placedBlock.getKey().serialize(), placedBlock.getValue().toString());
+        }
     }
 
     @Override
@@ -167,10 +169,10 @@ public final class FarmingMissions extends Mission<FarmingMissions.FarmingTracke
         ConfigurationSection placedPlants = section.getConfigurationSection("placed-plants");
         if (placedPlants != null) {
             for (String locationKey : placedPlants.getKeys(false)) {
-                Location location = getLocation(locationKey);
+                BlockPosition blockPosition = BlockPosition.deserialize(locationKey);
                 try {
-                    if (location != null)
-                        playerPlacedPlants.put(location, UUID.fromString(placedPlants.getString(locationKey)));
+                    if (blockPosition != null)
+                        playerPlacedPlants.put(blockPosition, UUID.fromString(placedPlants.getString(locationKey)));
                 } catch (IllegalArgumentException ignored) {
                 }
             }
@@ -181,7 +183,7 @@ public final class FarmingMissions extends Mission<FarmingMissions.FarmingTracke
     public void formatItem(SuperiorPlayer superiorPlayer, ItemStack itemStack) {
         FarmingTracker farmingTracker = getOrCreate(superiorPlayer, s -> new FarmingTracker());
 
-        if(farmingTracker == null)
+        if (farmingTracker == null)
             return;
 
         ItemMeta itemMeta = itemStack.getItemMeta();
@@ -223,30 +225,30 @@ public final class FarmingMissions extends Mission<FarmingMissions.FarmingTracke
         if (placerUUID == null)
             return;
 
-        playerPlacedPlants.put(e.getBlock().getLocation(), placerUUID);
+        playerPlacedPlants.put(BlockPosition.fromBlock(e.getBlock()), placerUUID);
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onBlockBreak(BlockBreakEvent e) {
-        playerPlacedPlants.remove(e.getBlock().getLocation());
+        playerPlacedPlants.remove(BlockPosition.fromBlock(e.getBlock()));
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onBlockExplode(EntityExplodeEvent e) {
         for (Block block : e.blockList())
-            playerPlacedPlants.remove(block.getLocation());
+            playerPlacedPlants.remove(BlockPosition.fromBlock(block));
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onPistonRetract(BlockPistonRetractEvent e) {
         for (Block block : e.getBlocks())
-            playerPlacedPlants.remove(block.getLocation());
+            playerPlacedPlants.remove(BlockPosition.fromBlock(block));
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onPistonRetract(BlockPistonExtendEvent e) {
         for (Block block : e.getBlocks())
-            playerPlacedPlants.remove(block.getLocation());
+            playerPlacedPlants.remove(BlockPosition.fromBlock(block));
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
@@ -298,7 +300,7 @@ public final class FarmingMissions extends Mission<FarmingMissions.FarmingTracke
                 break;
         }
 
-        UUID placerUUID = playerPlacedPlants.get(placedBlockLocation);
+        UUID placerUUID = playerPlacedPlants.get(BlockPosition.fromLocation(placedBlockLocation));
 
         if (placerUUID == null)
             return;
@@ -321,7 +323,7 @@ public final class FarmingMissions extends Mission<FarmingMissions.FarmingTracke
 
         FarmingTracker farmingTracker = getOrCreate(superiorPlayer, s -> new FarmingTracker());
 
-        if(farmingTracker == null)
+        if (farmingTracker == null)
             return;
 
         farmingTracker.track(blockTypeName);
@@ -356,24 +358,6 @@ public final class FarmingMissions extends Mission<FarmingMissions.FarmingTracke
             return island.getUniqueId();
         } else {
             return superiorPlayer.getUniqueId();
-        }
-    }
-
-    private String parseLocation(Location location) {
-        return location.getWorld().getName() + ";" + location.getBlockX() + ";" + location.getBlockY() + ";" + location.getBlockZ();
-    }
-
-    @Nullable
-    private Location getLocation(String parsedLocation) {
-        String[] sections = parsedLocation.split(";");
-        if (sections.length != 4)
-            return null;
-
-        try {
-            return new Location(Bukkit.getWorld(sections[0]), Integer.parseInt(sections[1]),
-                    Integer.parseInt(sections[2]), Integer.parseInt(sections[3]));
-        } catch (Exception ex) {
-            return null;
         }
     }
 
@@ -432,6 +416,61 @@ public final class FarmingMissions extends Mission<FarmingMissions.FarmingTracke
             }
 
             return amount;
+        }
+
+    }
+
+    private static final class BlockPosition {
+
+        private final String worldName;
+        private final int x;
+        private final int y;
+        private final int z;
+
+        static BlockPosition fromLocation(Location location) {
+            return new BlockPosition(location.getWorld().getName(), location.getBlockX(), location.getBlockY(), location.getBlockZ());
+        }
+
+        static BlockPosition fromBlock(Block block) {
+            return new BlockPosition(block.getWorld().getName(), block.getX(), block.getY(), block.getZ());
+        }
+
+        @Nullable
+        static BlockPosition deserialize(String serialized) {
+            String[] sections = serialized.split(";");
+            if (sections.length != 4)
+                return null;
+
+            try {
+                return new BlockPosition(sections[0], Integer.parseInt(sections[1]),
+                        Integer.parseInt(sections[2]), Integer.parseInt(sections[3]));
+            } catch (Exception ex) {
+                return null;
+            }
+        }
+
+        BlockPosition(String worldName, int x, int y, int z) {
+            this.worldName = worldName;
+            this.x = x;
+            this.y = y;
+            this.z = z;
+        }
+
+        String serialize() {
+            return this.worldName + ";" + this.x + ";" + this.y + ";" + this.z;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+            BlockPosition that = (BlockPosition) o;
+            return x == that.x && y == that.y && z == that.z && worldName.equals(that.worldName);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(worldName, x, y, z);
         }
 
     }
