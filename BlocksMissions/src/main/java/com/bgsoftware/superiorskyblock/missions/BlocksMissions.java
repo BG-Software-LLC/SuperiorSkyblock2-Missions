@@ -27,6 +27,7 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.plugin.java.JavaPlugin;
 
+import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -201,7 +202,7 @@ public final class BlocksMissions extends Mission<BlocksTracker> implements List
     public void formatItem(SuperiorPlayer superiorPlayer, ItemStack itemStack) {
         BlocksTracker blocksTracker = getOrCreate(superiorPlayer, s -> new BlocksTracker());
 
-        if(blocksTracker == null)
+        if (blocksTracker == null)
             return;
 
         ItemMeta itemMeta = itemStack.getItemMeta();
@@ -225,18 +226,22 @@ public final class BlocksMissions extends Mission<BlocksTracker> implements List
 
         BlocksTracker blocksTracker = getOrCreate(superiorPlayer, s -> new BlocksTracker());
 
-        if(blocksTracker == null)
+        if (blocksTracker == null)
             return;
 
+        BlockInfo blockInfo = new BlockInfo(e.getBlock());
+
         if (blocksPlacement) {
-            if (!replaceBlocks) {
-                if (isMissionBlock(e.getBlock()))
-                    blocksTracker.trackBlock(BlocksTracker.TrackingType.BROKEN_BLOCKS, e.getBlock());
+            if (!replaceBlocks && isMissionBlock(blockInfo) &&
+                    blocksTracker.isTracked(BlocksTracker.TrackingType.PLACED_BLOCKS, e.getBlock())) {
+                blocksTracker.untrackBlock(BlocksTracker.TrackingType.PLACED_BLOCKS, e.getBlock());
+                blocksTracker.countBlock(blockInfo.getBlockKey(), getBlockAmount(e.getPlayer(), e.getBlock()) * -1);
+                blocksTracker.countBlock("ALL", getBlockAmount(e.getPlayer(), e.getBlock()) * -1);
             }
             return;
         }
 
-        handleBlockBreak(e.getBlock(), superiorPlayer);
+        handleBlockBreak(e.getBlock(), superiorPlayer, blockInfo);
 
         blocksTracker.untrackBlock(BlocksTracker.TrackingType.PLACED_BLOCKS, e.getBlock());
     }
@@ -260,34 +265,27 @@ public final class BlocksMissions extends Mission<BlocksTracker> implements List
 
         BlocksTracker blocksTracker = getOrCreate(superiorPlayer, s -> new BlocksTracker());
 
-        if(blocksTracker == null)
+        if (blocksTracker == null)
             return;
 
         blocksTracker.untrackBlock(BlocksTracker.TrackingType.BROKEN_BLOCKS, e.getBlock());
 
+        BlockInfo blockInfo = new BlockInfo(e.getBlock());
+
         if (!blocksPlacement) {
             if (!replaceBlocks) {
-                if (isMissionBlock(e.getBlock()))
+                if (isMissionBlock(blockInfo))
                     blocksTracker.trackBlock(BlocksTracker.TrackingType.PLACED_BLOCKS, e.getBlock());
             }
             return;
         }
 
-        Material blockType = e.getBlock().getType();
-        short blockData = 0;
-
-        try {
-            //noinspection deprecation
-            blockData = e.getBlock().getData();
-        } catch (Throwable ignored) {
-        }
-
-        if (isBarrel(e.getBlock()) || !isMissionBlock(blockType, blockData) ||
+        if (isBarrel(e.getBlock()) || !isMissionBlock(blockInfo) ||
                 !superiorSkyblock.getMissions().hasAllRequiredMissions(superiorPlayer, this))
             return;
 
-        handleBlockTrack(BlocksTracker.TrackingType.PLACED_BLOCKS, e.getPlayer(), e.getBlock(), blockType,
-                blockData, getBlockAmount(e.getPlayer(), e.getBlock()));
+        handleBlockTrack(BlocksTracker.TrackingType.PLACED_BLOCKS, e.getPlayer(), e.getBlock(),
+                getBlockAmount(e.getPlayer(), e.getBlock()));
     }
 
     private class WildStackerListener implements Listener {
@@ -301,11 +299,12 @@ public final class BlocksMissions extends Mission<BlocksTracker> implements List
             ItemStack barrelItem = e.getBarrel().getBarrelItem(1);
             Material blockType = barrelItem.getType();
 
-            if (!isMissionBlock(blockType, barrelItem.getDurability()))
+            BlockInfo blockInfo = new BlockInfo(blockType, barrelItem.getDurability());
+
+            if (!isMissionBlock(blockInfo))
                 return;
 
-            handleBlockTrack(BlocksTracker.TrackingType.BROKEN_BLOCKS, (Player) e.getUnstackSource(), block,
-                    blockType, barrelItem.getDurability(), e.getAmount());
+            handleBlockTrack(BlocksTracker.TrackingType.BROKEN_BLOCKS, (Player) e.getUnstackSource(), block, blockInfo, e.getAmount());
         }
 
     }
@@ -318,7 +317,7 @@ public final class BlocksMissions extends Mission<BlocksTracker> implements List
 
             BlocksTracker blocksTracker = getOrCreate(superiorPlayer, s -> new BlocksTracker());
 
-            if(blocksTracker == null)
+            if (blocksTracker == null)
                 return;
 
             for (Location location : e.getBlocks()) {
@@ -331,29 +330,24 @@ public final class BlocksMissions extends Mission<BlocksTracker> implements List
     }
 
     private void handleBlockBreak(Block block, Player player) {
-        handleBlockBreak(block, SuperiorSkyblockAPI.getPlayer(player));
+        handleBlockBreak(block, SuperiorSkyblockAPI.getPlayer(player), null);
     }
 
-    private void handleBlockBreak(Block block, SuperiorPlayer superiorPlayer) {
+    private void handleBlockBreak(Block block, SuperiorPlayer superiorPlayer, @Nullable BlockInfo blockInfo) {
         Location location = block.getLocation();
-        Material blockType = block.getType();
-        short blockData = 0;
 
-        try {
-            //noinspection deprecation
-            blockData = block.getData();
-        } catch (Throwable ignored) {
-        }
+        if (blockInfo == null)
+            blockInfo = new BlockInfo(block);
 
         boolean placedByPlayer = entrySet().stream().anyMatch(entry -> entry.getValue()
                 .isTracked(BlocksTracker.TrackingType.PLACED_BLOCKS, block));
 
-        if (isBarrel(block) || (onlyNatural && placedByPlayer) || !isMissionBlock(blockType, blockData) ||
+        if (isBarrel(block) || (onlyNatural && placedByPlayer) || !isMissionBlock(blockInfo) ||
                 !superiorSkyblock.getMissions().hasAllRequiredMissions(superiorPlayer, this))
             return;
 
-        handleBlockTrack(BlocksTracker.TrackingType.BROKEN_BLOCKS, superiorPlayer, block, blockType,
-                blockData, getBlockAmount(superiorPlayer.asPlayer(), block));
+        handleBlockTrack(BlocksTracker.TrackingType.BROKEN_BLOCKS, superiorPlayer, block, blockInfo,
+                getBlockAmount(superiorPlayer.asPlayer(), block));
     }
 
     private void handleBlockPistonMove(List<Block> blockList, BlockFace direction) {
@@ -366,22 +360,28 @@ public final class BlocksMissions extends Mission<BlocksTracker> implements List
         }
     }
 
+    private void handleBlockTrack(BlocksTracker.TrackingType trackingType, Player player, Block block, int amount) {
+        handleBlockTrack(trackingType, SuperiorSkyblockAPI.getPlayer(player), block, new BlockInfo(block), amount);
+    }
+
     private void handleBlockTrack(BlocksTracker.TrackingType trackingType, Player player, Block block,
-                                  Material blockType, short data, int amount) {
-        handleBlockTrack(trackingType, SuperiorSkyblockAPI.getPlayer(player), block, blockType, data, amount);
+                                  BlockInfo blockInfo, int amount) {
+        handleBlockTrack(trackingType, SuperiorSkyblockAPI.getPlayer(player), block, blockInfo, amount);
     }
 
     private void handleBlockTrack(BlocksTracker.TrackingType trackingType, SuperiorPlayer superiorPlayer, Block block,
-                                  Material blockType, short data, int amount) {
-        if (!isMissionBlock(blockType, data) || !superiorSkyblock.getMissions().canCompleteNoProgress(superiorPlayer, this))
+                                  BlockInfo blockInfo, int amount) {
+        if (!isMissionBlock(blockInfo) || !superiorSkyblock.getMissions().canCompleteNoProgress(superiorPlayer, this))
             return;
 
         BlocksTracker blocksTracker = getOrCreate(superiorPlayer, s -> new BlocksTracker());
 
-        if(blocksTracker == null)
+        if (blocksTracker == null)
             return;
 
-        blocksTracker.countBlock(getBlockKey(blockType, data), amount);
+        blocksTracker.trackBlock(trackingType, block);
+
+        blocksTracker.countBlock(blockInfo.getBlockKey(), amount);
         blocksTracker.countBlock("ALL", amount);
 
         Bukkit.getScheduler().runTaskLaterAsynchronously(plugin, () -> superiorPlayer.runIfOnline(_player -> {
@@ -407,25 +407,10 @@ public final class BlocksMissions extends Mission<BlocksTracker> implements List
                 com.bgsoftware.wildstacker.api.WildStackerAPI.getWildStacker().getSystemManager().isStackedBarrel(block);
     }
 
-    private boolean isMissionBlock(Block block) {
-        Material blockType = block.getType();
-        short blockData = 0;
-
-        try {
-            //noinspection deprecation
-            blockData = block.getData();
-        } catch (Throwable ignored) {
-        }
-
-        return this.isMissionBlock(blockType, blockData);
-    }
-
-    private boolean isMissionBlock(Material blockType, short data) {
-        if (blockType == null)
-            return false;
-
+    private boolean isMissionBlock(BlockInfo blockInfo) {
         for (List<String> requiredBlock : requiredBlocks.keySet()) {
-            if (requiredBlock.contains(blockType.name()) || requiredBlock.contains(blockType.name() + ":" + data) ||
+            if (requiredBlock.contains(blockInfo.blockType.name()) ||
+                    requiredBlock.contains(blockInfo.blockType.name() + ":" + blockInfo.blockData) ||
                     requiredBlock.contains("all") || requiredBlock.contains("ALL"))
                 return true;
         }
@@ -457,10 +442,35 @@ public final class BlocksMissions extends Mission<BlocksTracker> implements List
         return ChatColor.translateAlternateColorCodes('&', line);
     }
 
-    private String getBlockKey(Material blockType, short data) {
-        String combinedKey = blockType.name() + ":" + data;
-        return requiredBlocks.entrySet().stream().anyMatch(entry -> entry.getKey().contains(combinedKey)) ?
-                combinedKey : blockType.name();
+    private class BlockInfo {
+
+        private final Material blockType;
+        private final short blockData;
+
+        BlockInfo(Block block) {
+            this.blockType = block.getType();
+            short blockData = 0;
+
+            try {
+                //noinspection deprecation
+                blockData = block.getData();
+            } catch (Throwable ignored) {
+            }
+
+            this.blockData = blockData;
+        }
+
+        BlockInfo(Material blockType, short blockData) {
+            this.blockType = blockType;
+            this.blockData = blockData;
+        }
+
+        String getBlockKey() {
+            String combinedKey = blockType.name() + ":" + blockData;
+            return requiredBlocks.entrySet().stream().anyMatch(entry -> entry.getKey().contains(combinedKey)) ?
+                    combinedKey : blockType.name();
+        }
+
     }
 
 }
