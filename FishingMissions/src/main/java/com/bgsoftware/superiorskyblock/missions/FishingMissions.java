@@ -185,7 +185,7 @@ public final class FishingMissions extends Mission<FishingMissions.FishingTracke
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onPlayerFish(PlayerFishEvent e){
-        if(!(e.getCaught() instanceof Item))
+        if(!(e.getCaught() instanceof Item) || e.getState() != PlayerFishEvent.State.CAUGHT_FISH)
             return;
 
         Item caughtItem = (Item) e.getCaught();
