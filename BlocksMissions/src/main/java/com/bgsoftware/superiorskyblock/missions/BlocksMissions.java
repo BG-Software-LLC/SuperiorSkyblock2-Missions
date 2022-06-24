@@ -12,6 +12,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.configuration.ConfigurationSection;
@@ -140,23 +141,26 @@ public final class BlocksMissions extends Mission<BlocksMissions.BlocksCounter> 
         }
 
         if (!savedTrackedBlocks) {
-            for (Map.Entry<String, Map<Long, Set<Integer>>> trackedEntry : BLOCKS_TRACKER
-                    .getBlocks(BlocksTracker.TrackingType.PLACED_BLOCKS).entrySet()) {
-                for (Map.Entry<Long, Set<Integer>> trackedBlocksEntry : trackedEntry.getValue().entrySet()) {
-                    if (!trackedBlocksEntry.getValue().isEmpty())
-                        section.set("tracked.placed." + trackedEntry.getKey() + "." + trackedBlocksEntry.getKey(),
-                                new ArrayList<>(trackedBlocksEntry.getValue()));
-                }
-            }
-            for (Map.Entry<String, Map<Long, Set<Integer>>> trackedEntry : BLOCKS_TRACKER
-                    .getBlocks(BlocksTracker.TrackingType.BROKEN_BLOCKS).entrySet()) {
-                for (Map.Entry<Long, Set<Integer>> trackedBlocksEntry : trackedEntry.getValue().entrySet()) {
-                    if (!trackedBlocksEntry.getValue().isEmpty())
-                        section.set("tracked.broken." + trackedEntry.getKey() + "." + trackedBlocksEntry.getKey(),
-                                new ArrayList<>(trackedBlocksEntry.getValue()));
-                }
-            }
-            savedTrackedBlocks = true;
+            BLOCKS_TRACKER.getBlocks(BlocksTracker.TrackingType.PLACED_BLOCKS).forEach((worldName, trackedData) -> {
+                trackedData.forEach((chunkKey, locations) -> {
+                    if (!locations.isEmpty())
+                        section.set("tracked.placed." + worldName + "." + chunkKey, new ArrayList<>(locations));
+                });
+            });
+            BLOCKS_TRACKER.getRawData(BlocksTracker.TrackingType.PLACED_BLOCKS).forEach((worldName, worldSection) -> {
+                for (String chunkKey : worldSection.getKeys(false))
+                    section.set("tracked.placed." + worldName + "." + chunkKey, worldSection.getIntegerList(chunkKey));
+            });
+            BLOCKS_TRACKER.getBlocks(BlocksTracker.TrackingType.BROKEN_BLOCKS).forEach((worldName, trackedData) -> {
+                trackedData.forEach((chunkKey, locations) -> {
+                    if (!locations.isEmpty())
+                        section.set("tracked.broken." + worldName + "." + chunkKey, new ArrayList<>(locations));
+                });
+            });
+            BLOCKS_TRACKER.getRawData(BlocksTracker.TrackingType.BROKEN_BLOCKS).forEach((worldName, worldSection) -> {
+                for (String chunkKey : worldSection.getKeys(false))
+                    section.set("tracked.broken." + worldName + "." + chunkKey, worldSection.getIntegerList(chunkKey));
+            });
         }
     }
 
@@ -200,26 +204,24 @@ public final class BlocksMissions extends Mission<BlocksMissions.BlocksCounter> 
                                           @Nullable ConfigurationSection trackedBrokenSection) {
         if (trackedPlacedSection != null) {
             for (String worldName : trackedPlacedSection.getKeys(false)) {
-                for (String chunkKey : trackedPlacedSection.getConfigurationSection(worldName).getKeys(false)) {
-                    List<Integer> trackedBlocks = trackedPlacedSection.getIntegerList(worldName + "." + chunkKey);
-                    try {
-                        BLOCKS_TRACKER.loadTrackedBlocks(BlocksTracker.TrackingType.PLACED_BLOCKS,
-                                Bukkit.getWorld(worldName), Long.parseLong(chunkKey), trackedBlocks);
-                    } catch (NumberFormatException ignored) {
-                    }
+                ConfigurationSection worldSection = trackedPlacedSection.getConfigurationSection(worldName);
+                World world = Bukkit.getWorld(worldName);
+                if (world == null) {
+                    BLOCKS_TRACKER.loadTrackedBlocks(BlocksTracker.TrackingType.PLACED_BLOCKS, worldName, worldSection);
+                } else {
+                    BLOCKS_TRACKER.loadTrackedBlocks(BlocksTracker.TrackingType.PLACED_BLOCKS, world, worldSection);
                 }
             }
         }
 
         if (trackedBrokenSection != null) {
             for (String worldName : trackedBrokenSection.getKeys(false)) {
-                for (String chunkKey : trackedBrokenSection.getConfigurationSection(worldName).getKeys(false)) {
-                    List<Integer> trackedBlocks = trackedBrokenSection.getIntegerList(worldName + "." + chunkKey);
-                    try {
-                        BLOCKS_TRACKER.loadTrackedBlocks(BlocksTracker.TrackingType.BROKEN_BLOCKS,
-                                Bukkit.getWorld(worldName), Long.parseLong(chunkKey), trackedBlocks);
-                    } catch (NumberFormatException ignored) {
-                    }
+                ConfigurationSection worldSection = trackedBrokenSection.getConfigurationSection(worldName);
+                World world = Bukkit.getWorld(worldName);
+                if (world == null) {
+                    BLOCKS_TRACKER.loadTrackedBlocks(BlocksTracker.TrackingType.BROKEN_BLOCKS, worldName, worldSection);
+                } else {
+                    BLOCKS_TRACKER.loadTrackedBlocks(BlocksTracker.TrackingType.BROKEN_BLOCKS, world, worldSection);
                 }
             }
         }

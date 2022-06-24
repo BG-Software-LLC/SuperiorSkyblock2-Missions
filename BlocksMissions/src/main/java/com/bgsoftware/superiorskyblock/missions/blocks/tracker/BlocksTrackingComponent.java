@@ -2,11 +2,12 @@ package com.bgsoftware.superiorskyblock.missions.blocks.tracker;
 
 import com.bgsoftware.common.reflection.ReflectMethod;
 import org.bukkit.World;
+import org.bukkit.configuration.ConfigurationSection;
 
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -19,16 +20,18 @@ public final class BlocksTrackingComponent {
     // Value represents all blocks broken in that chunk
     private final Map<Long, Set<Integer>> TRACKED_BLOCKS = new HashMap<>();
 
-    private final World world;
     private final int worldMinHeight;
 
     public BlocksTrackingComponent(World world) {
-        this.world = world;
-        this.worldMinHeight = !WORLD_GET_MIN_HEIGHT.isValid() ? 0 : WORLD_GET_MIN_HEIGHT.invoke(world);
+        this(!WORLD_GET_MIN_HEIGHT.isValid() ? 0 : WORLD_GET_MIN_HEIGHT.invoke(world));
     }
 
-    public World getWorld() {
-        return world;
+    public BlocksTrackingComponent(int worldMinHeight) {
+        this.worldMinHeight = worldMinHeight;
+    }
+
+    public int getWorldMinHeight() {
+        return worldMinHeight;
     }
 
     public boolean add(int blockX, int blockY, int blockZ) {
@@ -51,8 +54,14 @@ public final class BlocksTrackingComponent {
                 .orElse(false);
     }
 
-    public void loadBlocks(long chunkKey, Collection<Integer> trackedBlocks) {
-        TRACKED_BLOCKS.put(chunkKey, new HashSet<>(trackedBlocks));
+    public void loadBlocks(ConfigurationSection worldSection) {
+        for (String chunkKey : worldSection.getKeys(false)) {
+            List<Integer> trackedBlocks = worldSection.getIntegerList(chunkKey);
+            try {
+                TRACKED_BLOCKS.put(Long.parseLong(chunkKey), new HashSet<>(trackedBlocks));
+            } catch (NumberFormatException ignored) {
+            }
+        }
     }
 
     public Map<Long, Set<Integer>> getBlocks() {
