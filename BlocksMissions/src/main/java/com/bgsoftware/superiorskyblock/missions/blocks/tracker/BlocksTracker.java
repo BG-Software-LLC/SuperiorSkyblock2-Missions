@@ -69,9 +69,12 @@ public final class BlocksTracker {
             Map<String, ConfigurationSection> rawData = this.rawData.get(trackingType);
 
             if (rawData != null) {
-                blocksTrackingComponent.loadBlocks(rawData.remove(world.getName()));
-                if (rawData.isEmpty())
-                    this.rawData.remove(trackingType);
+                ConfigurationSection worldsSection = rawData.remove(world.getName());
+                if (worldsSection != null) {
+                    blocksTrackingComponent.loadBlocks(worldsSection);
+                    if (rawData.isEmpty())
+                        this.rawData.remove(trackingType);
+                }
             }
         }
 
