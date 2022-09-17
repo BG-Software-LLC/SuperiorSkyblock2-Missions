@@ -69,22 +69,18 @@ public final class BlocksTrackingComponent {
     }
 
     private int serializeLocation(int blockX, int blockY, int blockZ) {
-        int chunkX = blockX >> 4;
-        int chunkZ = blockZ >> 4;
+        int chunkMinX = blockX >> 4 << 4;
+        int chunkMinZ = blockZ >> 4 << 4;
 
 
-        byte relativeX = (byte) (blockX - chunkX);
+        byte relativeX = (byte) (blockX - chunkMinX);
         short relativeY = (short) (blockY - this.worldMinHeight);
-        byte relativeZ = (byte) (blockZ - chunkZ);
+        byte relativeZ = (byte) (blockZ - chunkMinZ);
 
         return (relativeY << 16) | (relativeX << 8) | relativeZ;
     }
 
     private static long serializeChunk(int chunkX, int chunkZ) {
-        return (long) chunkX << 32 | chunkZ;
-    }
-
-    private static long deserializeChunk(int chunkX, int chunkZ) {
         return (long) chunkX << 32 | chunkZ;
     }
 
