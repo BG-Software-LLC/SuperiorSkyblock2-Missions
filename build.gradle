@@ -19,7 +19,7 @@ subprojects {
 
     dependencies {
         compileOnly "org.spigotmc:v1_9_R2:latest"
-        compileOnly "com.bgsoftware:SuperiorSkyblockAPI:1.11.0"
+        compileOnly "com.bgsoftware:SuperiorSkyblockAPI:2022.9"
     }
 
     shadowJar {

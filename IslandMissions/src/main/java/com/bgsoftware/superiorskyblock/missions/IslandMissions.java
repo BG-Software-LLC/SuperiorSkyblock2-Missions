@@ -1,51 +1,36 @@
 package com.bgsoftware.superiorskyblock.missions;
 
 import com.bgsoftware.superiorskyblock.api.SuperiorSkyblock;
-import com.bgsoftware.superiorskyblock.api.events.IslandBankDepositEvent;
-import com.bgsoftware.superiorskyblock.api.events.IslandBankWithdrawEvent;
-import com.bgsoftware.superiorskyblock.api.events.IslandBiomeChangeEvent;
-import com.bgsoftware.superiorskyblock.api.events.IslandCoopPlayerEvent;
-import com.bgsoftware.superiorskyblock.api.events.IslandCreateEvent;
-import com.bgsoftware.superiorskyblock.api.events.IslandDisbandEvent;
-import com.bgsoftware.superiorskyblock.api.events.IslandEnterEvent;
-import com.bgsoftware.superiorskyblock.api.events.IslandEnterProtectedEvent;
 import com.bgsoftware.superiorskyblock.api.events.IslandEvent;
-import com.bgsoftware.superiorskyblock.api.events.IslandInviteEvent;
-import com.bgsoftware.superiorskyblock.api.events.IslandJoinEvent;
-import com.bgsoftware.superiorskyblock.api.events.IslandKickEvent;
-import com.bgsoftware.superiorskyblock.api.events.IslandLeaveEvent;
-import com.bgsoftware.superiorskyblock.api.events.IslandLeaveProtectedEvent;
-import com.bgsoftware.superiorskyblock.api.events.IslandQuitEvent;
-import com.bgsoftware.superiorskyblock.api.events.IslandSchematicPasteEvent;
 import com.bgsoftware.superiorskyblock.api.events.IslandTransferEvent;
-import com.bgsoftware.superiorskyblock.api.events.IslandUncoopPlayerEvent;
-import com.bgsoftware.superiorskyblock.api.events.IslandWorthCalculatedEvent;
-import com.bgsoftware.superiorskyblock.api.events.IslandWorthUpdateEvent;
 import com.bgsoftware.superiorskyblock.api.missions.Mission;
 import com.bgsoftware.superiorskyblock.api.missions.MissionLoadException;
 import com.bgsoftware.superiorskyblock.api.scripts.IScriptEngine;
+import com.bgsoftware.superiorskyblock.api.service.placeholders.PlaceholdersService;
 import com.bgsoftware.superiorskyblock.api.wrappers.SuperiorPlayer;
+import com.bgsoftware.superiorskyblock.missions.island.DynamicRegisteredListener;
+import com.bgsoftware.superiorskyblock.missions.island.EventsHelper;
 import org.bukkit.Bukkit;
-import org.bukkit.OfflinePlayer;
 import org.bukkit.configuration.ConfigurationSection;
-import org.bukkit.event.EventHandler;
-import org.bukkit.event.EventPriority;
+import org.bukkit.event.Event;
+import org.bukkit.event.EventException;
+import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
+import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.spigotmc.CustomTimingsHandler;
 
 import javax.script.SimpleBindings;
-import java.util.HashMap;
-import java.util.Map;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 
 @SuppressWarnings("unused")
 public final class IslandMissions extends Mission<Boolean> implements Listener {
 
-    private final Map<String, Boolean> missionEvents = new HashMap<>();
-
-    private Placeholders placeholders = new Placeholders_None();
     private String successCheck;
     private JavaPlugin plugin;
     private SuperiorSkyblock superiorSkyblock;
+    private PlaceholdersService placeholdersService;
 
     @Override
     public void load(JavaPlugin plugin, ConfigurationSection section) throws MissionLoadException {
@@ -56,21 +41,34 @@ public final class IslandMissions extends Mission<Boolean> implements Listener {
             throw new MissionLoadException("You must have the \"events\" section in the config.");
 
         for (String event : section.getStringList("events")) {
-            if (event.toLowerCase().endsWith("-target"))
-                missionEvents.put(event.split("-")[0], true);
-            else
-                missionEvents.put(event, false);
+            boolean targetPlayer = false;
+            String eventName = event;
+
+            if (event.toLowerCase().endsWith("-target")) {
+                targetPlayer = true;
+                eventName = event.split("-")[0];
+            }
+
+            try {
+                registerEventListener(plugin, eventName, targetPlayer);
+            } catch (ClassNotFoundException error) {
+                plugin.getLogger().warning("The event " + eventName + " is not valid, skipping");
+            } catch (Exception error) {
+                plugin.getLogger().warning("Cannot register IslandMission for " + eventName + ":");
+                error.printStackTrace();
+            }
         }
 
         successCheck = section.getString("success-check", "true");
 
+        RegisteredServiceProvider<PlaceholdersService> registeredServiceProvider = plugin.getServer()
+                .getServicesManager().getRegistration(PlaceholdersService.class);
+
+        if (registeredServiceProvider != null) {
+            this.placeholdersService = registeredServiceProvider.getProvider();
+        }
+
         Bukkit.getPluginManager().registerEvents(this, plugin);
-
-        Bukkit.getScheduler().runTaskLater(plugin, () -> {
-            if (Bukkit.getPluginManager().isPluginEnabled("PlaceholderAPI"))
-                placeholders = new Placeholders_PAPI();
-        }, 1L);
-
     }
 
     @Override
@@ -93,163 +91,94 @@ public final class IslandMissions extends Mission<Boolean> implements Listener {
         clearData(superiorPlayer);
     }
 
-    /*
-     *  Events
-     */
+    private void registerEventListener(JavaPlugin plugin, String eventName, boolean isTarget) throws Exception {
+        Class<?> eventClass = Class.forName("com.bgsoftware.superiorskyblock.api.events." + eventName);
 
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
-    public void onIslandDeposit(IslandBankDepositEvent e) {
-        tryComplete(e, e.getPlayer());
-    }
+        if (!Event.class.isAssignableFrom(eventClass))
+            return;
 
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
-    public void onIslandWithdraw(IslandBankWithdrawEvent e) {
-        tryComplete(e, e.getPlayer());
-    }
 
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
-    public void onIslandBiomeChange(IslandBiomeChangeEvent e) {
-        tryComplete(e, e.getPlayer());
-    }
+        HandlerList handlerList = EventsHelper.getEventListeners(eventClass.asSubclass(Event.class));
+        CustomTimingsHandler timings = new CustomTimingsHandler("Plugin: " + plugin.getDescription().getFullName() +
+                " Event: DynamicRegisteredListener::" + eventName + "(" + eventClass.getSimpleName() + ")");
 
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
-    public void onIslandCoop(IslandCoopPlayerEvent e) {
-        tryComplete(e, e.getPlayer(), e.getTarget());
-    }
+        Method getPlayerMethod = getMethodSilently(eventClass, "getPlayer");
+        Method getTargetMethod = getMethodSilently(eventClass, "getTarget");
+        ;
 
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
-    public void onIslandCreate(IslandCreateEvent e) {
-        tryComplete(e, e.getPlayer());
-    }
-
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
-    public void onIslandDisband(IslandDisbandEvent e) {
-        tryComplete(e, e.getPlayer());
-    }
-
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
-    public void onIslandEnter(IslandEnterEvent e) {
-        tryComplete(e, e.getPlayer());
-    }
-
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
-    public void onIslandEnterProtected(IslandEnterProtectedEvent e) {
-        tryComplete(e, e.getPlayer());
-    }
-
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
-    public void onIslandInvite(IslandInviteEvent e) {
-        tryComplete(e, e.getPlayer(), e.getTarget());
-    }
-
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
-    public void onIslandJoin(IslandJoinEvent e) {
-        tryComplete(e, e.getPlayer());
-    }
-
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
-    public void onIslandKick(IslandKickEvent e) {
-        tryComplete(e, e.getPlayer(), e.getTarget());
-    }
-
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
-    public void onIslandLeave(IslandLeaveEvent e) {
-        tryComplete(e, e.getPlayer());
-    }
-
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
-    public void onIslandLeaveProtected(IslandLeaveProtectedEvent e) {
-        tryComplete(e, e.getPlayer());
-    }
-
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
-    public void onIslandQuit(IslandQuitEvent e) {
-        tryComplete(e, e.getPlayer());
-    }
-
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
-    public void onIslandTransfer(IslandTransferEvent e) {
-        tryComplete(e, e.getOldOwner(), e.getNewOwner());
-    }
-
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
-    public void onIslandUncoop(IslandUncoopPlayerEvent e) {
-        tryComplete(e, e.getPlayer(), e.getTarget());
-    }
-
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
-    public void onIslandCalculate(IslandWorthCalculatedEvent e) {
-        tryComplete(e, e.getPlayer());
-    }
-
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
-    public void onIslandWorthUpdate(IslandWorthUpdateEvent e) {
-        tryComplete(e, e.getIsland().getOwner());
-    }
-
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
-    public void onIslandWorthUpdate(IslandSchematicPasteEvent e) {
-        tryComplete(e, e.getIsland().getOwner());
-    }
-
-    private void tryComplete(IslandEvent event, SuperiorPlayer superiorPlayer) {
-        tryComplete(event, superiorPlayer, null);
-    }
-
-    private void tryComplete(IslandEvent event, SuperiorPlayer superiorPlayer, SuperiorPlayer targetPlayer) {
-        String eventName = event.getClass().getSimpleName();
-        if (missionEvents.containsKey(eventName)) {
-            boolean success = false;
-
-            SimpleBindings bindings = new SimpleBindings();
-            bindings.put("event", event);
-
-            IScriptEngine scriptEngine = superiorSkyblock.getScriptEngine();
-
+        handlerList.register(new DynamicRegisteredListener(plugin, (listener, event) -> {
             try {
-                String result = placeholders.parse(scriptEngine.eval(successCheck, bindings) + "", superiorPlayer.asOfflinePlayer());
-                success = Boolean.parseBoolean(result);
-            } catch (Exception ex) {
-                plugin.getLogger().info("&cError occurred while checking for success condition for IslandMission.");
-                plugin.getLogger().info("&cCurrent Script Engine: " + scriptEngine);
-                plugin.getLogger().info("&cPlaceholders: " + placeholders);
-                ex.printStackTrace();
-            }
+                if (eventClass.isAssignableFrom(event.getClass()) && event instanceof IslandEvent) {
+                    boolean isAsync = event.isAsynchronous();
 
-            if (success) {
-                SuperiorPlayer rewardedPlayer = !missionEvents.get(eventName) ? superiorPlayer : targetPlayer;
-                if (rewardedPlayer != null) {
-                    Bukkit.getScheduler().runTaskLater(plugin, () -> {
-                        insertData(rewardedPlayer, true);
-                        superiorSkyblock.getMissions().rewardMission(this, rewardedPlayer, true);
-                    }, 5L);
+                    if (!isAsync) {
+                        timings.startTiming();
+                    }
+
+                    SuperiorPlayer superiorPlayer;
+                    SuperiorPlayer targetPlayer;
+
+                    if (event instanceof IslandTransferEvent) {
+                        superiorPlayer = ((IslandTransferEvent) event).getOldOwner();
+                        targetPlayer = ((IslandTransferEvent) event).getNewOwner();
+                    } else {
+                        superiorPlayer = getPlayerMethod == null ? ((IslandEvent) event).getIsland().getOwner() :
+                                (SuperiorPlayer) getPlayerMethod.invoke(event);
+                        targetPlayer = getTargetMethod == null ? null : (SuperiorPlayer) getTargetMethod.invoke(event);
+                    }
+
+                    tryComplete((IslandEvent) event, superiorPlayer, targetPlayer, isTarget);
+
+                    if (!isAsync) {
+                        timings.stopTiming();
+                    }
                 }
+            } catch (InvocationTargetException var4) {
+                throw new EventException(var4.getCause());
+            } catch (Throwable var5) {
+                throw new EventException(var5);
+            }
+        }));
+    }
+
+    private void tryComplete(IslandEvent event, SuperiorPlayer superiorPlayer, SuperiorPlayer targetPlayer, boolean isTarget) {
+        String eventName = event.getClass().getSimpleName();
+        boolean success = false;
+
+        SimpleBindings bindings = new SimpleBindings();
+        bindings.put("event", event);
+
+        IScriptEngine scriptEngine = superiorSkyblock.getScriptEngine();
+
+        try {
+            String result = scriptEngine.eval(successCheck, bindings) + "";
+            if (this.placeholdersService != null) {
+                result = placeholdersService.parsePlaceholders(superiorPlayer.asOfflinePlayer(), result);
+            }
+            success = Boolean.parseBoolean(result);
+        } catch (Throwable error) {
+            plugin.getLogger().warning("Error occurred while checking for success condition for IslandMission.");
+            plugin.getLogger().warning("Current Script Engine: " + scriptEngine);
+            error.printStackTrace();
+        }
+
+        if (success) {
+            SuperiorPlayer rewardedPlayer = isTarget ? targetPlayer : superiorPlayer;
+            if (rewardedPlayer != null) {
+                Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                    insertData(rewardedPlayer, true);
+                    superiorSkyblock.getMissions().rewardMission(this, rewardedPlayer, true);
+                }, 5L);
             }
         }
     }
 
-    private interface Placeholders {
-
-        String parse(String string, OfflinePlayer offlinePlayer);
-
-    }
-
-    private static final class Placeholders_PAPI implements Placeholders {
-
-        @Override
-        public String parse(String string, OfflinePlayer offlinePlayer) {
-            return me.clip.placeholderapi.PlaceholderAPI.setPlaceholders(offlinePlayer, string);
+    private static Method getMethodSilently(Class<?> clazz, String methodName) {
+        try {
+            return clazz.getDeclaredMethod(methodName);
+        } catch (Exception error) {
+            return null;
         }
-
-    }
-
-    private static final class Placeholders_None implements Placeholders {
-
-        @Override
-        public String parse(String string, OfflinePlayer offlinePlayer) {
-            return string;
-        }
-
     }
 
 }
