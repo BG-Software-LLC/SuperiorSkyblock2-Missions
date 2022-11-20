@@ -10,6 +10,7 @@ import com.bgsoftware.superiorskyblock.api.service.placeholders.PlaceholdersServ
 import com.bgsoftware.superiorskyblock.api.wrappers.SuperiorPlayer;
 import com.bgsoftware.superiorskyblock.missions.island.DynamicRegisteredListener;
 import com.bgsoftware.superiorskyblock.missions.island.EventsHelper;
+import com.bgsoftware.superiorskyblock.missions.island.timings.ITimings;
 import org.bukkit.Bukkit;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.event.Event;
@@ -18,7 +19,6 @@ import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
 import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.java.JavaPlugin;
-import org.spigotmc.CustomTimingsHandler;
 
 import javax.script.SimpleBindings;
 import java.lang.reflect.InvocationTargetException;
@@ -99,12 +99,11 @@ public final class IslandMissions extends Mission<Boolean> implements Listener {
 
 
         HandlerList handlerList = EventsHelper.getEventListeners(eventClass.asSubclass(Event.class));
-        CustomTimingsHandler timings = new CustomTimingsHandler("Plugin: " + plugin.getDescription().getFullName() +
+        ITimings timings = ITimings.of(plugin, "Plugin: " + plugin.getDescription().getFullName() +
                 " Event: DynamicRegisteredListener::" + eventName + "(" + eventClass.getSimpleName() + ")");
 
         Method getPlayerMethod = getMethodSilently(eventClass, "getPlayer");
         Method getTargetMethod = getMethodSilently(eventClass, "getTarget");
-        ;
 
         handlerList.register(new DynamicRegisteredListener(plugin, (listener, event) -> {
             try {
