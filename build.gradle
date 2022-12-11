@@ -14,7 +14,7 @@ subprojects {
     repositories {
         maven { url 'https://repo.bg-software.com/repository/nms/' }
         maven { url 'https://repo.bg-software.com/repository/api/' }
-        maven { url 'https://repo.bg-software.com/repository/public-libs/' }
+        maven { url 'https://repo.bg-software.com/repository/dependencies/' }
         maven { url 'https://repo.bg-software.com/repository/common/' }
     }
 
