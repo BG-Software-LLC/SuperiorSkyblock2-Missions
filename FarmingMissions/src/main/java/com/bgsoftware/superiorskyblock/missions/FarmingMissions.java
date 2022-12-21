@@ -40,6 +40,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -71,7 +72,7 @@ public final class FarmingMissions extends Mission<FarmingMissions.FarmingTracke
 
     private JavaPlugin plugin;
     private final Map<List<String>, Integer> requiredPlants = new HashMap<>();
-    private final Map<BlockPosition, UUID> playerPlacedPlants = new HashMap<>();
+    private final Map<BlockPosition, UUID> playerPlacedPlants = new ConcurrentHashMap<>();
     private boolean resetAfterFinish;
 
     @Override
