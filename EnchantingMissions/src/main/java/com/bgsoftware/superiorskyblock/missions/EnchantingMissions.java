@@ -134,7 +134,7 @@ public final class EnchantingMissions extends Mission<EnchantingMissions.Enchant
     public void formatItem(SuperiorPlayer superiorPlayer, ItemStack itemStack) {
         EnchantsTracker enchantsTracker = getOrCreate(superiorPlayer, s -> new EnchantsTracker());
 
-        if(enchantsTracker == null)
+        if (enchantsTracker == null)
             return;
 
         ItemMeta itemMeta = itemStack.getItemMeta();
@@ -222,7 +222,7 @@ public final class EnchantingMissions extends Mission<EnchantingMissions.Enchant
 
         EnchantsTracker enchantsTracker = getOrCreate(superiorPlayer, s -> new EnchantsTracker());
 
-        if(enchantsTracker == null)
+        if (enchantsTracker == null)
             return;
 
         enchantsTracker.track(itemStack);
@@ -320,10 +320,19 @@ public final class EnchantingMissions extends Mission<EnchantingMissions.Enchant
         }
 
         private boolean isAddingEnchantment(org.bukkit.event.inventory.PrepareAnvilEvent e) {
-            ItemStack firstSlot = e.getInventory().getItem(0);
-            ItemStack secondSlot = e.getInventory().getItem(1);
             ItemStack result = e.getResult();
-            return result != null && firstSlot != null && secondSlot != null && !result.isSimilar(firstSlot) && secondSlot.getType().name().contains("BOOK");
+            if (result == null)
+                return false;
+
+            ItemStack firstSlot = e.getInventory().getItem(0);
+            if (firstSlot == null)
+                return false;
+
+            ItemStack secondSlot = e.getInventory().getItem(1);
+            if (secondSlot == null)
+                return false;
+
+            return firstSlot.getType() == secondSlot.getType() || secondSlot.getType().name().contains("BOOK");
         }
 
     }
