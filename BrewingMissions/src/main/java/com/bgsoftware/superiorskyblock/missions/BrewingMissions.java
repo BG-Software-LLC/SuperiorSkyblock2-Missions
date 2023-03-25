@@ -178,7 +178,7 @@ public final class BrewingMissions extends Mission<BrewingMissions.BrewingTracke
     public void formatItem(SuperiorPlayer superiorPlayer, ItemStack itemStack) {
         BrewingTracker killsTracker = getOrCreate(superiorPlayer, s -> new BrewingTracker());
 
-        if(killsTracker == null)
+        if (killsTracker == null)
             return;
 
         ItemMeta itemMeta = itemStack.getItemMeta();
@@ -247,33 +247,35 @@ public final class BrewingMissions extends Mission<BrewingMissions.BrewingTracke
             return;
         }
 
-        SuperiorPlayer superiorPlayer = SuperiorSkyblockAPI.getPlayer(player);
+        try {
+            SuperiorPlayer superiorPlayer = SuperiorSkyblockAPI.getPlayer(player);
 
-        BrewingTracker brewingTracker = getOrCreate(superiorPlayer, s -> new BrewingTracker());
+            if (!superiorSkyblock.getMissions().canCompleteNoProgress(superiorPlayer, this))
+                return;
 
-        if(brewingTracker == null)
-            return;
+            BrewingTracker brewingTracker = getOrCreate(superiorPlayer, s -> new BrewingTracker());
 
-        for (int i = 0; i < 3; ++i) {
-            if (checkSlot.test(i) && brewItems[i]) {
-                brewItems[i] = false;
+            if (brewingTracker == null)
+                return;
 
-                ItemStack brewItem = inventory.getItem(i);
+            for (int i = 0; i < 3; ++i) {
+                if (checkSlot.test(i) && brewItems[i]) {
+                    brewItems[i] = false;
 
-                brewingTracker.track(brewItem, brewItem.getAmount());
+                    ItemStack brewItem = inventory.getItem(i);
+
+                    brewingTracker.track(brewItem, brewItem.getAmount());
+                }
             }
+
+            Bukkit.getScheduler().runTaskLaterAsynchronously(plugin, () -> superiorPlayer.runIfOnline(_player -> {
+                if (canComplete(superiorPlayer))
+                    SuperiorSkyblockAPI.getSuperiorSkyblock().getMissions().rewardMission(this, superiorPlayer, true);
+            }), 2L);
+        } finally {
+            if (!brewItems[0] && !brewItems[1] && !brewItems[2])
+                this.trackedBrewItems.remove(block.getLocation());
         }
-
-        if (!brewItems[0] && !brewItems[1] && !brewItems[2])
-            this.trackedBrewItems.remove(block.getLocation());
-
-        if (!superiorSkyblock.getMissions().canCompleteNoProgress(superiorPlayer, this))
-            return;
-
-        Bukkit.getScheduler().runTaskLaterAsynchronously(plugin, () -> superiorPlayer.runIfOnline(_player -> {
-            if (canComplete(superiorPlayer))
-                SuperiorSkyblockAPI.getSuperiorSkyblock().getMissions().rewardMission(this, superiorPlayer, true);
-        }), 2L);
     }
 
     private boolean isMissionBrewing(ItemStack itemStack) {
