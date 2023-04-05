@@ -1,5 +1,6 @@
 package com.bgsoftware.superiorskyblock.missions;
 
+import com.bgsoftware.common.reflection.ReflectMethod;
 import com.bgsoftware.superiorskyblock.api.SuperiorSkyblock;
 import com.bgsoftware.superiorskyblock.api.SuperiorSkyblockAPI;
 import com.bgsoftware.superiorskyblock.api.island.Island;
@@ -14,6 +15,8 @@ import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.block.BlockState;
+import org.bukkit.block.data.Ageable;
+import org.bukkit.block.data.BlockData;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -47,6 +50,8 @@ import java.util.regex.Pattern;
 @SuppressWarnings("unused")
 public final class FarmingMissions extends Mission<FarmingMissions.FarmingTracker> implements Listener {
 
+    private static final ReflectMethod<Object> GET_BLOCK_DATA = new ReflectMethod<>(BlockState.class, "getBlockData");
+
     private static final SuperiorSkyblock superiorSkyblock = SuperiorSkyblockAPI.getSuperiorSkyblock();
 
     private static final Pattern percentagePattern = Pattern.compile("(.*)\\{percentage_(.+?)}(.*)"),
@@ -68,6 +73,7 @@ public final class FarmingMissions extends Mission<FarmingMissions.FarmingTracke
             .put("BEETROOTS", 3)
             .put("COCOA", 2)
             .put("COCOA_BEANS", 2)
+            .put("SWEET_BERRY_BUSH", 3)
             .build();
 
     private JavaPlugin plugin;
@@ -270,10 +276,11 @@ public final class FarmingMissions extends Mission<FarmingMissions.FarmingTracke
 
     private void handlePlantGrow(Block plantBlock, BlockState newState) {
         String blockTypeName = newState.getType().name();
-        int age = newState.getRawData();
 
         if (!isMissionPlant(blockTypeName))
             return;
+
+        int age = getBlockAge(newState);
 
         if (age < MAXIMUM_AGES.getOrDefault(blockTypeName, 0))
             return;
@@ -333,6 +340,16 @@ public final class FarmingMissions extends Mission<FarmingMissions.FarmingTracke
             if (canComplete(superiorPlayer))
                 SuperiorSkyblockAPI.getSuperiorSkyblock().getMissions().rewardMission(this, superiorPlayer, true);
         }), 2L);
+    }
+
+    private int getBlockAge(BlockState newState) {
+        try {
+            BlockData blockData = newState.getBlockData();
+            return blockData instanceof Ageable ? ((Ageable) blockData).getAge() : 0;
+        } catch (Throwable error) {
+            // noinspection deprecation
+            return newState.getRawData();
+        }
     }
 
     private static Location getLowestBlock(Block original) {
