@@ -6,7 +6,6 @@ import com.bgsoftware.superiorskyblock.api.missions.MissionLoadException;
 import com.bgsoftware.superiorskyblock.api.wrappers.SuperiorPlayer;
 import com.bgsoftware.superiorskyblock.missions.common.Placeholders;
 import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Item;
@@ -26,7 +25,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.regex.Matcher;
 
 public final class FishingMissions extends Mission<FishingMissions.FishingTracker> implements Listener {
 
@@ -168,13 +166,33 @@ public final class FishingMissions extends Mission<FishingMissions.FishingTracke
         if (itemMeta == null)
             return;
 
+        Placeholders.PlaceholdersFunctions<ItemStack> placeholdersFunctions = new Placeholders.PlaceholdersFunctions<ItemStack>() {
+            @Override
+            public ItemStack getRequirementFromKey(String key) {
+                return new ItemStack(Material.valueOf(key));
+            }
+
+            @Override
+            public Optional<Integer> lookupRequirement(ItemStack requirement) {
+                return itemsToCatch.entrySet().stream()
+                        .filter(e -> e.getKey().contains(requirement))
+                        .findFirst()
+                        .map(Map.Entry::getValue);
+            }
+
+            @Override
+            public int getCountForRequirement(ItemStack requirement) {
+                return fishingTracker.getCaughts(Collections.singletonList(requirement));
+            }
+        };
+
         if (itemMeta.hasDisplayName())
-            itemMeta.setDisplayName(parsePlaceholders(fishingTracker, itemMeta.getDisplayName()));
+            itemMeta.setDisplayName(Placeholders.parsePlaceholders(itemMeta.getDisplayName(), placeholdersFunctions));
 
         if (itemMeta.hasLore()) {
             List<String> lore = new ArrayList<>();
             for (String line : Objects.requireNonNull(itemMeta.getLore()))
-                lore.add(parsePlaceholders(fishingTracker, line));
+                lore.add(Placeholders.parsePlaceholders(line, placeholdersFunctions));
             itemMeta.setLore(lore);
         }
 
@@ -225,42 +243,6 @@ public final class FishingMissions extends Mission<FishingMissions.FishingTracke
         }
 
         return false;
-    }
-
-    private String parsePlaceholders(FishingTracker entityTracker, String line) {
-        Matcher matcher = Placeholders.PERCENTAGE_PATTERN.matcher(line);
-
-        if (matcher.find()) {
-            try {
-                String requiredBlock = matcher.group(1).toUpperCase();
-                ItemStack itemStack = new ItemStack(Material.valueOf(requiredBlock));
-
-                Optional<Map.Entry<List<ItemStack>, Integer>> entry = itemsToCatch.entrySet().stream()
-                        .filter(e -> e.getKey().contains(itemStack)).findAny();
-
-                if (entry.isPresent()) {
-                    line = matcher.replaceAll("" + (entityTracker.getCaughts(Collections.singletonList(itemStack)) * 100) / entry.get().getValue());
-                }
-            } catch (Exception ignored) {
-            }
-        }
-
-        if ((matcher = Placeholders.VALUES_PATTERN.matcher(line)).find()) {
-            try {
-                String requiredBlock = matcher.group(1).toUpperCase();
-                ItemStack itemStack = new ItemStack(Material.valueOf(requiredBlock));
-
-                Optional<Map.Entry<List<ItemStack>, Integer>> entry = itemsToCatch.entrySet().stream()
-                        .filter(e -> e.getKey().contains(itemStack)).findAny();
-
-                if (entry.isPresent()) {
-                    line = matcher.replaceAll("" + (entityTracker.getCaughts(Collections.singletonList(itemStack))));
-                }
-            } catch (Exception ignored) {
-            }
-        }
-
-        return ChatColor.translateAlternateColorCodes('&', line);
     }
 
     public static class FishingTracker {

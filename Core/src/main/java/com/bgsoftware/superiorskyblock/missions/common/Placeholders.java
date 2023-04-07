@@ -4,46 +4,73 @@ import org.bukkit.ChatColor;
 
 import java.util.Map;
 import java.util.Optional;
-import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class Placeholders {
 
-    public static final Pattern PERCENTAGE_PATTERN = Pattern.compile("\\{percentage_(.+?)}");
-    public static final Pattern VALUES_PATTERN = Pattern.compile("\\{value_(.+?)}");
+    private static final Pattern PERCENTAGE_PATTERN = Pattern.compile("\\{percentage_(.+?)}");
+    private static final Pattern VALUES_PATTERN = Pattern.compile("\\{value_(.+?)}");
 
     private Placeholders() {
 
     }
 
     public static String parsePlaceholders(Map<RequirementsList, Integer> requirements, DataTracker dataTracker, String line) {
-        return parsePlaceholders(requirements, dataTracker::getCount, line);
+        return parsePlaceholders(line, new PlaceholdersFunctions<String>() {
+            @Override
+            public String getRequirementFromKey(String key) {
+                return key;
+            }
+
+            @Override
+            public Optional<Integer> lookupRequirement(String requirement) {
+                return requirements.entrySet().stream()
+                        .filter(e -> e.getKey().contains(requirement))
+                        .findFirst()
+                        .map(Map.Entry::getValue);
+            }
+
+            @Override
+            public int getCountForRequirement(String requirement) {
+                return dataTracker.getCount(requirement);
+            }
+        });
     }
 
-    public static String parsePlaceholders(Map<RequirementsList, Integer> requirements, Function<String, Integer> getCountFunction, String line) {
+    public static <E> String parsePlaceholders(String line, PlaceholdersFunctions<E> functions) {
         Matcher matcher = PERCENTAGE_PATTERN.matcher(line);
         if (matcher.find()) {
-            String requirement = matcher.group(1).toUpperCase();
-            Optional<Map.Entry<RequirementsList, Integer>> entry = requirements.entrySet().stream()
-                    .filter(e -> e.getKey().contains(requirement)).findFirst();
+            String requirementKey = matcher.group(1).toUpperCase();
+            E requirement = functions.getRequirementFromKey(requirementKey);
+            Optional<Integer> entry = functions.lookupRequirement(requirement);
 
             if (entry.isPresent()) {
-                line = matcher.replaceAll("" + (getCountFunction.apply(requirement) * 100) / entry.get().getValue());
+                line = matcher.replaceAll("" + (functions.getCountForRequirement(requirement) * 100) / entry.get());
             }
         }
 
         if ((matcher = VALUES_PATTERN.matcher(line)).find()) {
-            String requiredBlock = matcher.group(1).toUpperCase();
-            Optional<Map.Entry<RequirementsList, Integer>> entry = requirements.entrySet().stream()
-                    .filter(e -> e.getKey().contains(requiredBlock)).findFirst();
+            String requirementKey = matcher.group(1).toUpperCase();
+            E requirement = functions.getRequirementFromKey(requirementKey);
+            Optional<Integer> entry = functions.lookupRequirement(requirement);
 
             if (entry.isPresent()) {
-                line = matcher.replaceAll("" + getCountFunction.apply(requiredBlock));
+                line = matcher.replaceAll("" + functions.getCountForRequirement(requirement));
             }
         }
 
         return ChatColor.translateAlternateColorCodes('&', line);
+    }
+
+    public static abstract class PlaceholdersFunctions<E> {
+
+        public abstract E getRequirementFromKey(String key);
+
+        public abstract Optional<Integer> lookupRequirement(E requirement);
+
+        public abstract int getCountForRequirement(E requirement);
+
     }
 
 }

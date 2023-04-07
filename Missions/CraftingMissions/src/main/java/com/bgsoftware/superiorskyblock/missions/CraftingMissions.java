@@ -6,7 +6,6 @@ import com.bgsoftware.superiorskyblock.api.missions.MissionLoadException;
 import com.bgsoftware.superiorskyblock.api.wrappers.SuperiorPlayer;
 import com.bgsoftware.superiorskyblock.missions.common.Placeholders;
 import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.HumanEntity;
@@ -28,7 +27,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.regex.Matcher;
 
 public final class CraftingMissions extends Mission<CraftingMissions.CraftingsTracker> implements Listener {
 
@@ -153,13 +151,33 @@ public final class CraftingMissions extends Mission<CraftingMissions.CraftingsTr
         if (itemMeta == null)
             return;
 
+        Placeholders.PlaceholdersFunctions<ItemStack> placeholdersFunctions = new Placeholders.PlaceholdersFunctions<ItemStack>() {
+            @Override
+            public ItemStack getRequirementFromKey(String key) {
+                return new ItemStack(Material.valueOf(key));
+            }
+
+            @Override
+            public Optional<Integer> lookupRequirement(ItemStack requirement) {
+                return itemsToCraft.entrySet().stream()
+                        .filter(e -> e.getKey().isSimilar(requirement))
+                        .findFirst()
+                        .map(Map.Entry::getValue);
+            }
+
+            @Override
+            public int getCountForRequirement(ItemStack requirement) {
+                return craftingsTracker.getCrafts(requirement);
+            }
+        };
+
         if (itemMeta.hasDisplayName())
-            itemMeta.setDisplayName(parsePlaceholders(craftingsTracker, itemMeta.getDisplayName()));
+            itemMeta.setDisplayName(Placeholders.parsePlaceholders(itemMeta.getDisplayName(), placeholdersFunctions));
 
         if (itemMeta.hasLore()) {
             List<String> lore = new ArrayList<>();
             for (String line : Objects.requireNonNull(itemMeta.getLore()))
-                lore.add(parsePlaceholders(craftingsTracker, line));
+                lore.add(Placeholders.parsePlaceholders(line, placeholdersFunctions));
             itemMeta.setLore(lore);
         }
 
@@ -222,36 +240,6 @@ public final class CraftingMissions extends Mission<CraftingMissions.CraftingsTr
             amount += humanEntity.getItemOnCursor().getAmount();
 
         return amount;
-    }
-
-    private String parsePlaceholders(CraftingsTracker entityTracker, String line) {
-        Matcher matcher = Placeholders.PERCENTAGE_PATTERN.matcher(line);
-
-        if (matcher.find()) {
-            try {
-                String requiredBlock = matcher.group(1).toUpperCase();
-                ItemStack itemStack = new ItemStack(Material.valueOf(requiredBlock));
-                Optional<Map.Entry<ItemStack, Integer>> entry = itemsToCraft.entrySet().stream().filter(e -> e.getKey().isSimilar(itemStack)).findAny();
-                if (entry.isPresent()) {
-                    line = matcher.replaceAll("" + (entityTracker.getCrafts(itemStack) * 100) / entry.get().getValue());
-                }
-            } catch (Exception ignored) {
-            }
-        }
-
-        if ((matcher = Placeholders.VALUES_PATTERN.matcher(line)).find()) {
-            try {
-                String requiredBlock = matcher.group(1).toUpperCase();
-                ItemStack itemStack = new ItemStack(Material.valueOf(requiredBlock));
-                Optional<Map.Entry<ItemStack, Integer>> entry = itemsToCraft.entrySet().stream().filter(e -> e.getKey().isSimilar(itemStack)).findAny();
-                if (entry.isPresent()) {
-                    line = matcher.replaceAll("" + (entityTracker.getCrafts(itemStack)));
-                }
-            } catch (Exception ignored) {
-            }
-        }
-
-        return ChatColor.translateAlternateColorCodes('&', line);
     }
 
     public static class CraftingsTracker {

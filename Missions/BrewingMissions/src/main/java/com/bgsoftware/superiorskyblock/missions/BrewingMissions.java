@@ -32,13 +32,13 @@ import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Predicate;
-import java.util.regex.Matcher;
 
 public final class BrewingMissions extends Mission<BrewingMissions.BrewingTracker> implements Listener {
 
@@ -182,13 +182,33 @@ public final class BrewingMissions extends Mission<BrewingMissions.BrewingTracke
         if (itemMeta == null)
             return;
 
+        Placeholders.PlaceholdersFunctions<PotionData> placeholdersFunctions = new Placeholders.PlaceholdersFunctions<PotionData>() {
+            @Override
+            public PotionData getRequirementFromKey(String key) {
+                return PotionData.fromString(key);
+            }
+
+            @Override
+            public Optional<Integer> lookupRequirement(PotionData requirement) {
+                return requiredPotions.entrySet().stream()
+                        .filter(e -> e.getKey().contains(requirement))
+                        .findFirst()
+                        .map(Map.Entry::getValue);
+            }
+
+            @Override
+            public int getCountForRequirement(PotionData requirement) {
+                return brewingTracker.getBrews(Collections.singletonList(requirement));
+            }
+        };
+
         if (itemMeta.hasDisplayName())
-            itemMeta.setDisplayName(parsePlaceholders(brewingTracker, itemMeta.getDisplayName()));
+            itemMeta.setDisplayName(Placeholders.parsePlaceholders(itemMeta.getDisplayName(), placeholdersFunctions));
 
         if (itemMeta.hasLore()) {
-            List<String> lore = new ArrayList<>();
+            List<String> lore = new LinkedList<>();
             for (String line : Objects.requireNonNull(itemMeta.getLore()))
-                lore.add(parsePlaceholders(brewingTracker, line));
+                lore.add(Placeholders.parsePlaceholders(line, placeholdersFunctions));
             itemMeta.setLore(lore);
         }
 
@@ -289,43 +309,6 @@ public final class BrewingMissions extends Mission<BrewingMissions.BrewingTracke
         }
 
         return false;
-    }
-
-    private String parsePlaceholders(BrewingTracker killsTracker, String line) {
-        Matcher matcher = Placeholders.PERCENTAGE_PATTERN.matcher(line);
-
-        if (matcher.find()) {
-            String requiredPotionType = matcher.group(1).toUpperCase();
-
-            try {
-                PotionData potionData = PotionData.fromString(requiredPotionType);
-
-                Optional<Map.Entry<List<PotionData>, Integer>> entry = requiredPotions.entrySet().stream()
-                        .filter(e -> e.getKey().contains(potionData)).findAny();
-
-                if (entry.isPresent()) {
-                    line = matcher.replaceAll("" + (killsTracker.getBrews(Collections.singletonList(potionData)) * 100) / entry.get().getValue());
-                }
-            } catch (IllegalArgumentException ignored) {
-            }
-        }
-
-        if ((matcher = Placeholders.VALUES_PATTERN.matcher(line)).find()) {
-            String requiredPotionType = matcher.group(1).toUpperCase();
-
-            try {
-                PotionData potionData = PotionData.fromString(requiredPotionType);
-
-                Optional<Map.Entry<List<PotionData>, Integer>> entry = requiredPotions.entrySet().stream()
-                        .filter(e -> e.getKey().contains(potionData)).findFirst();
-                if (entry.isPresent()) {
-                    line = matcher.replaceAll("" + killsTracker.getBrews(Collections.singletonList(potionData)));
-                }
-            } catch (IllegalArgumentException ignored) {
-            }
-        }
-
-        return ChatColor.translateAlternateColorCodes('&', line);
     }
 
 

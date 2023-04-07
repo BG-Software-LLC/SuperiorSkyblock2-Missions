@@ -26,6 +26,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.function.Function;
 
 public final class StatisticsMissions extends Mission<Void> implements Listener {
@@ -142,15 +143,33 @@ public final class StatisticsMissions extends Mission<Void> implements Listener 
         if (itemMeta == null)
             return;
 
-        Function<String, Integer> getCountFunction = statistic -> getStatisticAmount(player, statistic);
+        Placeholders.PlaceholdersFunctions<String> placeholdersFunctions = new Placeholders.PlaceholdersFunctions<String>() {
+            @Override
+            public String getRequirementFromKey(String key) {
+                return key;
+            }
+
+            @Override
+            public Optional<Integer> lookupRequirement(String requirement) {
+                return requiredStatistics.entrySet().stream()
+                        .filter(e -> e.getKey().contains(requirement))
+                        .findFirst()
+                        .map(Map.Entry::getValue);
+            }
+
+            @Override
+            public int getCountForRequirement(String requirement) {
+                return getStatisticAmount(player, requirement);
+            }
+        };
 
         if (itemMeta.hasDisplayName())
-            itemMeta.setDisplayName(Placeholders.parsePlaceholders(this.requiredStatistics, getCountFunction, itemMeta.getDisplayName()));
+            itemMeta.setDisplayName(Placeholders.parsePlaceholders(itemMeta.getDisplayName(), placeholdersFunctions));
 
         if (itemMeta.hasLore()) {
             List<String> lore = new ArrayList<>();
             for (String line : Objects.requireNonNull(itemMeta.getLore()))
-                lore.add(Placeholders.parsePlaceholders(this.requiredStatistics, getCountFunction, line));
+                lore.add(Placeholders.parsePlaceholders(line, placeholdersFunctions));
             itemMeta.setLore(lore);
         }
 
