@@ -1,0 +1,12 @@
+group 'Missions'
+
+subprojects {
+    shadowJar {
+        archiveFileName = "${project.name}.jar"
+        destinationDirectory = rootProject.targetFolder
+    }
+
+    dependencies {
+        implementation project(":Core")
+    }
+}

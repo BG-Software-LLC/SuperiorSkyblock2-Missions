@@ -7,6 +7,10 @@ plugins {
 
 group 'SuperiorSkyblock-Missions'
 
+project.ext {
+    targetFolder = file("target/")
+}
+
 subprojects {
     apply plugin: 'java'
     apply plugin: 'com.github.johnrengelman.shadow'
@@ -23,11 +27,6 @@ subprojects {
         compileOnly "org.spigotmc:v1_8_R3-Taco:latest"
         compileOnly "com.bgsoftware.common.reflection:ReflectionUtils:1.0.2"
         compileOnly "com.bgsoftware:SuperiorSkyblockAPI:2022.9"
-    }
-
-    shadowJar {
-        archiveFileName = "${project.name}.jar"
-        destinationDir = file("../target/")
     }
 
     build {
