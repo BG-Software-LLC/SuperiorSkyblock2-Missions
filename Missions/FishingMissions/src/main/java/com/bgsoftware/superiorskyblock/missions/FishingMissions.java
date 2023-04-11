@@ -18,17 +18,21 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 public final class FishingMissions extends Mission<FishingMissions.FishingTracker> implements Listener {
 
-    private final Map<List<ItemStack>, Integer> itemsToCatch = new HashMap<>();
+    private final Map<Set<ItemStack>, Integer> itemsToCatch = new LinkedHashMap<>();
 
     private SuperiorSkyblock plugin;
 
@@ -44,7 +48,7 @@ public final class FishingMissions extends Mission<FishingMissions.FishingTracke
             List<String> itemTypes = section.getStringList("required-caughts." + key + ".types");
             int amount = section.getInt("required-caughts." + key + ".amount", 1);
 
-            List<ItemStack> itemsToCatch = new ArrayList<>();
+            Set<ItemStack> itemsToCatch = new LinkedHashSet<>();
 
             for (String itemType : itemTypes) {
                 byte data = 0;
@@ -88,7 +92,7 @@ public final class FishingMissions extends Mission<FishingMissions.FishingTracke
         int requiredItems = 0;
         int interactions = 0;
 
-        for (Map.Entry<List<ItemStack>, Integer> entry : this.itemsToCatch.entrySet()) {
+        for (Map.Entry<Set<ItemStack>, Integer> entry : this.itemsToCatch.entrySet()) {
             requiredItems += entry.getValue();
             interactions += Math.min(fishingTracker.getCaughts(entry.getKey()), entry.getValue());
         }
@@ -105,7 +109,7 @@ public final class FishingMissions extends Mission<FishingMissions.FishingTracke
 
         int interactions = 0;
 
-        for (Map.Entry<List<ItemStack>, Integer> entry : this.itemsToCatch.entrySet())
+        for (Map.Entry<Set<ItemStack>, Integer> entry : this.itemsToCatch.entrySet())
             interactions += Math.min(fishingTracker.getCaughts(entry.getKey()), entry.getValue());
 
         return interactions;
@@ -237,7 +241,7 @@ public final class FishingMissions extends Mission<FishingMissions.FishingTracke
         if (itemStack == null)
             return false;
 
-        for (List<ItemStack> requiredItem : this.itemsToCatch.keySet()) {
+        for (Set<ItemStack> requiredItem : this.itemsToCatch.keySet()) {
             if (requiredItem.contains(itemStack))
                 return true;
         }
@@ -255,7 +259,7 @@ public final class FishingMissions extends Mission<FishingMissions.FishingTracke
             caughtItems.put(keyItem, caughtItems.getOrDefault(keyItem, 0) + itemStack.getAmount());
         }
 
-        int getCaughts(List<ItemStack> itemStacks) {
+        int getCaughts(Collection<ItemStack> itemStacks) {
             int caughts = 0;
 
             for (ItemStack itemStack : itemStacks) {

@@ -8,7 +8,7 @@ import com.bgsoftware.superiorskyblock.missions.blocks.BlocksTracker;
 import com.bgsoftware.superiorskyblock.missions.common.Counter;
 import com.bgsoftware.superiorskyblock.missions.common.DataTracker;
 import com.bgsoftware.superiorskyblock.missions.common.Placeholders;
-import com.bgsoftware.superiorskyblock.missions.common.RequirementsList;
+import com.bgsoftware.superiorskyblock.missions.common.Requirements;
 import com.bgsoftware.wildstacker.api.WildStackerAPI;
 import com.bgsoftware.wildstacker.api.events.BarrelUnstackEvent;
 import com.bgsoftware.wildtools.api.events.CuboidWandUseEvent;
@@ -33,7 +33,8 @@ import org.bukkit.plugin.java.JavaPlugin;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -45,7 +46,7 @@ public class BlocksMissions extends Mission<DataTracker> implements Listener {
 
     private static final BlocksTracker BLOCKS_TRACKER = new BlocksTracker();
 
-    private final Map<RequirementsList, Integer> requiredBlocks = new HashMap<>();
+    private final Map<Requirements, Integer> requiredBlocks = new LinkedHashMap<>();
 
     private boolean onlyNatural, blocksPlacement, replaceBlocks;
     private SuperiorSkyblock plugin;
@@ -62,7 +63,7 @@ public class BlocksMissions extends Mission<DataTracker> implements Listener {
         for (String key : section.getConfigurationSection("required-blocks").getKeys(false)) {
             List<String> blocks = section.getStringList("required-blocks." + key + ".types");
             int requiredAmount = section.getInt("required-blocks." + key + ".amount");
-            requiredBlocks.put(new RequirementsList(blocks), requiredAmount);
+            requiredBlocks.put(new Requirements(blocks), requiredAmount);
         }
 
         //resetAfterFinish = section.getBoolean("reset-after-finish", false);
@@ -97,7 +98,7 @@ public class BlocksMissions extends Mission<DataTracker> implements Listener {
         int requiredBlocks = 0;
         int interactions = 0;
 
-        for (Map.Entry<RequirementsList, Integer> requiredBlock : this.requiredBlocks.entrySet()) {
+        for (Map.Entry<Requirements, Integer> requiredBlock : this.requiredBlocks.entrySet()) {
             requiredBlocks += requiredBlock.getValue();
             interactions += Math.min(blocksCounter.getCounts(requiredBlock.getKey()), requiredBlock.getValue());
         }
@@ -114,7 +115,7 @@ public class BlocksMissions extends Mission<DataTracker> implements Listener {
 
         int interactions = 0;
 
-        for (Map.Entry<RequirementsList, Integer> requiredBlock : this.requiredBlocks.entrySet())
+        for (Map.Entry<Requirements, Integer> requiredBlock : this.requiredBlocks.entrySet())
             interactions += Math.min(blocksCounter.getCounts(requiredBlock.getKey()), requiredBlock.getValue());
 
         return interactions;
@@ -279,13 +280,13 @@ public class BlocksMissions extends Mission<DataTracker> implements Listener {
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onPistonRetract(BlockPistonRetractEvent e) {
         if (!e.getBlocks().isEmpty())
-            handleBlockPistonMove(new ArrayList<>(e.getBlocks()), e.getDirection());
+            handleBlockPistonMove(new LinkedList<>(e.getBlocks()), e.getDirection());
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onPistonExtend(BlockPistonExtendEvent e) {
         if (!e.getBlocks().isEmpty())
-            handleBlockPistonMove(new ArrayList<>(e.getBlocks()), e.getDirection());
+            handleBlockPistonMove(new LinkedList<>(e.getBlocks()), e.getDirection());
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
@@ -365,7 +366,7 @@ public class BlocksMissions extends Mission<DataTracker> implements Listener {
                 getBlockAmount(superiorPlayer.asPlayer(), block));
     }
 
-    private void handleBlockPistonMove(List<Block> blockList, BlockFace direction) {
+    private void handleBlockPistonMove(LinkedList<Block> blockList, BlockFace direction) {
         blockList.removeIf(block -> !isMissionBlock(new BlockInfo(block)) ||
                 !BLOCKS_TRACKER.isTracked(BlocksTracker.TrackingType.PLACED_BLOCKS, block));
 
@@ -376,10 +377,10 @@ public class BlocksMissions extends Mission<DataTracker> implements Listener {
                 .map(block -> block.getRelative(direction))
                 .collect(Collectors.toList());
 
-        List<Block> addedBlocks = new ArrayList<>(movedBlocks);
+        List<Block> addedBlocks = new LinkedList<>(movedBlocks);
         addedBlocks.removeAll(blockList);
 
-        List<Block> removedBlocks = new ArrayList<>(blockList);
+        List<Block> removedBlocks = new LinkedList<>(blockList);
         removedBlocks.removeAll(movedBlocks);
 
         removedBlocks.forEach(block -> BLOCKS_TRACKER.untrackBlock(BlocksTracker.TrackingType.PLACED_BLOCKS, block));
@@ -416,7 +417,7 @@ public class BlocksMissions extends Mission<DataTracker> implements Listener {
     }
 
     private boolean isMissionBlock(BlockInfo blockInfo) {
-        for (RequirementsList requirementsList : requiredBlocks.keySet()) {
+        for (Requirements requirementsList : requiredBlocks.keySet()) {
             if (requirementsList.contains(blockInfo.blockType.name()) ||
                     requirementsList.contains(blockInfo.blockType.name() + ":" + blockInfo.blockData))
                 return true;

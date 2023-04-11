@@ -5,7 +5,7 @@ import com.bgsoftware.superiorskyblock.api.missions.Mission;
 import com.bgsoftware.superiorskyblock.api.missions.MissionLoadException;
 import com.bgsoftware.superiorskyblock.api.wrappers.SuperiorPlayer;
 import com.bgsoftware.superiorskyblock.missions.common.DataTracker;
-import com.bgsoftware.superiorskyblock.missions.common.RequirementsList;
+import com.bgsoftware.superiorskyblock.missions.common.Requirements;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
@@ -25,6 +25,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -37,7 +38,7 @@ public final class EnchantingMissions extends Mission<DataTracker> implements Li
 
     private static final Pattern PERCENTAGE_PATTERN = Pattern.compile("(.*)\\{enchanted_(.+?)}(.*)");
 
-    private final Map<RequirementsList, RequiredEnchantment> requiredEnchantments = new HashMap<>();
+    private final Map<Requirements, RequiredEnchantment> requiredEnchantments = new LinkedHashMap<>();
 
     private String enchantedPlaceholder, notEnchantedPlaceholder;
     private SuperiorSkyblock plugin;
@@ -70,7 +71,7 @@ public final class EnchantingMissions extends Mission<DataTracker> implements Li
             }
 
             if (!enchantments.isEmpty()) {
-                requiredEnchantments.put(new RequirementsList(itemTypes), new RequiredEnchantment(key, enchantments,
+                requiredEnchantments.put(new Requirements(itemTypes), new RequiredEnchantment(key, enchantments,
                         section.getInt("required-enchants." + key + ".amount", 1)));
             }
 
@@ -214,7 +215,7 @@ public final class EnchantingMissions extends Mission<DataTracker> implements Li
 
     private Optional<RequiredEnchantment> getMissionRequirement(ItemStack itemStack) {
         outerLoop:
-        for (Map.Entry<RequirementsList, RequiredEnchantment> requirement : this.requiredEnchantments.entrySet()) {
+        for (Map.Entry<Requirements, RequiredEnchantment> requirement : this.requiredEnchantments.entrySet()) {
             if (!requirement.getKey().contains(itemStack.getType().name()))
                 continue;
 
@@ -262,7 +263,7 @@ public final class EnchantingMissions extends Mission<DataTracker> implements Li
         if (matcher.matches()) {
             String requiredBlock = matcher.group(2).toUpperCase();
 
-            Optional<Map.Entry<RequirementsList, RequiredEnchantment>> entry = requiredEnchantments.entrySet().stream()
+            Optional<Map.Entry<Requirements, RequiredEnchantment>> entry = requiredEnchantments.entrySet().stream()
                     .filter(e -> e.getKey().contains(requiredBlock)).findAny();
 
             if (entry.isPresent()) {

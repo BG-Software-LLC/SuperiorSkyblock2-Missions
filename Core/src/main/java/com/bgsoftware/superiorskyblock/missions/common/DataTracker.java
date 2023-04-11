@@ -29,7 +29,7 @@ public class DataTracker {
         return this.globalCounter.get();
     }
 
-    public int getCounts(RequirementsList blocks) {
+    public int getCounts(Requirements blocks) {
         if (blocks.isContainsAll())
             return getGlobalCounter();
 

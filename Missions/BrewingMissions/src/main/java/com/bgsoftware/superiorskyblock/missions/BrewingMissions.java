@@ -29,14 +29,17 @@ import org.bukkit.potion.Potion;
 import org.bukkit.potion.PotionType;
 
 import javax.annotation.Nullable;
-import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.function.Predicate;
 
@@ -44,7 +47,7 @@ public final class BrewingMissions extends Mission<BrewingMissions.BrewingTracke
 
     private static final boolean isUsing18 = Bukkit.getServer().getClass().getPackage().getName().contains("1_8");
 
-    private final Map<List<PotionData>, Integer> requiredPotions = new HashMap<>();
+    private final Map<Set<PotionData>, Integer> requiredPotions = new LinkedHashMap<>();
     private final Map<Location, boolean[]> trackedBrewItems = new HashMap<>();
     private boolean resetAfterFinish;
 
@@ -60,7 +63,7 @@ public final class BrewingMissions extends Mission<BrewingMissions.BrewingTracke
             throw new MissionLoadException("You must have the \"required-potions\" section in the config.");
 
         for (String key : requiredPotionsSection.getKeys(false)) {
-            List<PotionData> potionDataList = new ArrayList<>();
+            Set<PotionData> requiredPotions = new LinkedHashSet<>();
 
             for (String potionSectionName : section.getConfigurationSection("required-potions." + key + ".potions").getKeys(false)) {
                 ConfigurationSection potionSection = section.getConfigurationSection("required-potions." + key + ".potions." + potionSectionName);
@@ -83,12 +86,12 @@ public final class BrewingMissions extends Mission<BrewingMissions.BrewingTracke
                 boolean extended = potionSection.getBoolean("extended", false);
                 boolean splash = potionSection.getBoolean("splash", false);
 
-                potionDataList.add(new PotionData(potionType, upgraded, extended, splash));
+                requiredPotions.add(new PotionData(potionType, upgraded, extended, splash));
             }
 
-            if (!potionDataList.isEmpty()) {
+            if (!requiredPotions.isEmpty()) {
                 int requiredAmount = section.getInt("required-potions." + key + ".amount");
-                requiredPotions.put(potionDataList, requiredAmount);
+                this.requiredPotions.put(requiredPotions, requiredAmount);
             }
         }
 
@@ -111,7 +114,7 @@ public final class BrewingMissions extends Mission<BrewingMissions.BrewingTracke
         int requiredPotions = 0;
         int kills = 0;
 
-        for (Map.Entry<List<PotionData>, Integer> requiredPotion : this.requiredPotions.entrySet()) {
+        for (Map.Entry<Set<PotionData>, Integer> requiredPotion : this.requiredPotions.entrySet()) {
             requiredPotions += requiredPotion.getValue();
             kills += Math.min(brewingTracker.getBrews(requiredPotion.getKey()), requiredPotion.getValue());
         }
@@ -128,7 +131,7 @@ public final class BrewingMissions extends Mission<BrewingMissions.BrewingTracke
 
         int kills = 0;
 
-        for (Map.Entry<List<PotionData>, Integer> requiredEntity : this.requiredPotions.entrySet())
+        for (Map.Entry<Set<PotionData>, Integer> requiredEntity : this.requiredPotions.entrySet())
             kills += Math.min(brewingTracker.getBrews(requiredEntity.getKey()), requiredEntity.getValue());
 
         return kills;
@@ -303,7 +306,7 @@ public final class BrewingMissions extends Mission<BrewingMissions.BrewingTracke
         if (potionData == null)
             return false;
 
-        for (List<PotionData> requiredPotion : requiredPotions.keySet()) {
+        for (Collection<PotionData> requiredPotion : requiredPotions.keySet()) {
             if (requiredPotion.contains(potionData))
                 return true;
         }
@@ -322,7 +325,7 @@ public final class BrewingMissions extends Mission<BrewingMissions.BrewingTracke
             brewingTracker.put(potionData, newAmount);
         }
 
-        int getBrews(List<BrewingMissions.PotionData> potions) {
+        int getBrews(Collection<PotionData> potions) {
             int amount = 0;
 
             for (Map.Entry<PotionData, Integer> potionData : brewingTracker.entrySet()) {

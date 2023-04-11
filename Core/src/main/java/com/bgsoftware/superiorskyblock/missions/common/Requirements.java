@@ -6,12 +6,12 @@ import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
-public class RequirementsList extends ForwardingSet<String> {
+public class Requirements extends ForwardingSet<String> {
 
     private final Set<String> handle = new LinkedHashSet<>();
     private boolean containsAll = false;
 
-    public RequirementsList(Collection<String> elements) {
+    public Requirements(Collection<String> elements) {
         addAll(elements);
     }
 

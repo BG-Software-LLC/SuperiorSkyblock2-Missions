@@ -16,7 +16,7 @@ public class Placeholders {
 
     }
 
-    public static String parsePlaceholders(Map<RequirementsList, Integer> requirements, DataTracker dataTracker, String line) {
+    public static String parsePlaceholders(Map<Requirements, Integer> requirements, DataTracker dataTracker, String line) {
         return parsePlaceholders(line, new PlaceholdersFunctions<String>() {
             @Override
             public String getRequirementFromKey(String key) {

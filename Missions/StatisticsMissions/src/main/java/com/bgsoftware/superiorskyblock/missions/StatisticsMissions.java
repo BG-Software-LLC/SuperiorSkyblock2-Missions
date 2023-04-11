@@ -5,7 +5,7 @@ import com.bgsoftware.superiorskyblock.api.missions.Mission;
 import com.bgsoftware.superiorskyblock.api.missions.MissionLoadException;
 import com.bgsoftware.superiorskyblock.api.wrappers.SuperiorPlayer;
 import com.bgsoftware.superiorskyblock.missions.common.Placeholders;
-import com.bgsoftware.superiorskyblock.missions.common.RequirementsList;
+import com.bgsoftware.superiorskyblock.missions.common.Requirements;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.Statistic;
@@ -22,16 +22,15 @@ import org.bukkit.plugin.java.JavaPlugin;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.function.Function;
 
 public final class StatisticsMissions extends Mission<Void> implements Listener {
 
-    private final Map<RequirementsList, Integer> requiredStatistics = new HashMap<>();
+    private final Map<Requirements, Integer> requiredStatistics = new LinkedHashMap<>();
 
     private SuperiorSkyblock plugin;
 
@@ -47,7 +46,7 @@ public final class StatisticsMissions extends Mission<Void> implements Listener 
         for (String key : requiredStatisticsSection.getKeys(false)) {
             List<String> statistics = section.getStringList("required-statistics." + key + ".statistics");
             int requiredAmount = section.getInt("required-statistics." + key + ".amount");
-            requiredStatistics.put(new RequirementsList(statistics), requiredAmount);
+            requiredStatistics.put(new Requirements(statistics), requiredAmount);
         }
 
         Bukkit.getPluginManager().registerEvents(this, plugin);
@@ -63,8 +62,8 @@ public final class StatisticsMissions extends Mission<Void> implements Listener 
         if (player == null)
             return progress;
 
-        for (Map.Entry<RequirementsList, Integer> entry : this.requiredStatistics.entrySet()) {
-            RequirementsList requirement = entry.getKey();
+        for (Map.Entry<Requirements, Integer> entry : this.requiredStatistics.entrySet()) {
+            Requirements requirement = entry.getKey();
             int requiredAmount = entry.getValue();
 
             int statisticAmount = 0;
@@ -99,8 +98,8 @@ public final class StatisticsMissions extends Mission<Void> implements Listener 
         if (player == null)
             return totalItemAmount;
 
-        for (Map.Entry<RequirementsList, Integer> entry : this.requiredStatistics.entrySet()) {
-            RequirementsList requirement = entry.getKey();
+        for (Map.Entry<Requirements, Integer> entry : this.requiredStatistics.entrySet()) {
+            Requirements requirement = entry.getKey();
             int requiredAmount = entry.getValue();
 
             int statisticAmount = 0;
@@ -193,7 +192,7 @@ public final class StatisticsMissions extends Mission<Void> implements Listener 
         if (statistic == null)
             return false;
 
-        for (RequirementsList requirement : requiredStatistics.keySet()) {
+        for (Requirements requirement : requiredStatistics.keySet()) {
             if (requirement.contains(statistic.name()) || (statistic.isSubstatistic() &&
                     requirement.stream().anyMatch(line -> line.contains(statistic.name()))))
                 return true;

@@ -22,6 +22,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -30,7 +31,7 @@ import java.util.UUID;
 
 public final class CraftingMissions extends Mission<CraftingMissions.CraftingsTracker> implements Listener {
 
-    private final Map<ItemStack, Integer> itemsToCraft = new HashMap<>();
+    private final Map<ItemStack, Integer> itemsToCraft = new LinkedHashMap<>();
 
     private SuperiorSkyblock plugin;
 

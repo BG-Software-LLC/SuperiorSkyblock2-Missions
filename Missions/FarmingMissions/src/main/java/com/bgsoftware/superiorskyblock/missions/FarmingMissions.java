@@ -7,7 +7,7 @@ import com.bgsoftware.superiorskyblock.api.missions.MissionLoadException;
 import com.bgsoftware.superiorskyblock.api.wrappers.SuperiorPlayer;
 import com.bgsoftware.superiorskyblock.missions.common.DataTracker;
 import com.bgsoftware.superiorskyblock.missions.common.Placeholders;
-import com.bgsoftware.superiorskyblock.missions.common.RequirementsList;
+import com.bgsoftware.superiorskyblock.missions.common.Requirements;
 import com.google.common.collect.ImmutableMap;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
@@ -36,7 +36,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -64,7 +64,7 @@ public final class FarmingMissions extends Mission<DataTracker> implements Liste
             .put("SWEET_BERRY_BUSH", 3)
             .build();
 
-    private final Map<RequirementsList, Integer> requiredPlants = new HashMap<>();
+    private final Map<Requirements, Integer> requiredPlants = new LinkedHashMap<>();
     private final Map<BlockPosition, UUID> playerPlacedPlants = new ConcurrentHashMap<>();
     private boolean resetAfterFinish;
 
@@ -82,7 +82,7 @@ public final class FarmingMissions extends Mission<DataTracker> implements Liste
         for (String key : requiredPlantsSection.getKeys(false)) {
             List<String> requiredPlants = section.getStringList("required-plants." + key + ".types");
             int requiredAmount = section.getInt("required-plants." + key + ".amount");
-            this.requiredPlants.put(new RequirementsList(requiredPlants), requiredAmount);
+            this.requiredPlants.put(new Requirements(requiredPlants), requiredAmount);
         }
 
         resetAfterFinish = section.getBoolean("reset-after-finish", false);
@@ -100,7 +100,7 @@ public final class FarmingMissions extends Mission<DataTracker> implements Liste
         int requiredPlants = 0;
         int grewPlants = 0;
 
-        for (Map.Entry<RequirementsList, Integer> requiredPlant : this.requiredPlants.entrySet()) {
+        for (Map.Entry<Requirements, Integer> requiredPlant : this.requiredPlants.entrySet()) {
             requiredPlants += requiredPlant.getValue();
             grewPlants += Math.min(farmingTracker.getCounts(requiredPlant.getKey()), requiredPlant.getValue());
         }
@@ -117,7 +117,7 @@ public final class FarmingMissions extends Mission<DataTracker> implements Liste
 
         int kills = 0;
 
-        for (Map.Entry<RequirementsList, Integer> requiredPlant : this.requiredPlants.entrySet())
+        for (Map.Entry<Requirements, Integer> requiredPlant : this.requiredPlants.entrySet())
             kills += Math.min(farmingTracker.getCounts(requiredPlant.getKey()), requiredPlant.getValue());
 
         return kills;
@@ -376,7 +376,7 @@ public final class FarmingMissions extends Mission<DataTracker> implements Liste
         if (blockTypeName == null)
             return false;
 
-        for (RequirementsList requirement : requiredPlants.keySet()) {
+        for (Requirements requirement : requiredPlants.keySet()) {
             if (requirement.contains(blockTypeName))
                 return true;
         }

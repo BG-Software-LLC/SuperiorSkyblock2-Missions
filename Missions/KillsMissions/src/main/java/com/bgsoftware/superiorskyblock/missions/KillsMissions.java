@@ -6,7 +6,7 @@ import com.bgsoftware.superiorskyblock.api.missions.MissionLoadException;
 import com.bgsoftware.superiorskyblock.api.wrappers.SuperiorPlayer;
 import com.bgsoftware.superiorskyblock.missions.common.DataTracker;
 import com.bgsoftware.superiorskyblock.missions.common.Placeholders;
-import com.bgsoftware.superiorskyblock.missions.common.RequirementsList;
+import com.bgsoftware.superiorskyblock.missions.common.Requirements;
 import com.bgsoftware.wildstacker.api.WildStackerAPI;
 import org.bukkit.Bukkit;
 import org.bukkit.configuration.ConfigurationSection;
@@ -28,7 +28,7 @@ import org.bukkit.projectiles.ProjectileSource;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -37,7 +37,7 @@ import java.util.function.Function;
 
 public final class KillsMissions extends Mission<DataTracker> implements Listener {
 
-    private final Map<RequirementsList, Integer> requiredEntities = new HashMap<>();
+    private final Map<Requirements, Integer> requiredEntities = new LinkedHashMap<>();
     private boolean resetAfterFinish;
 
     private SuperiorSkyblock plugin;
@@ -56,7 +56,7 @@ public final class KillsMissions extends Mission<DataTracker> implements Listene
         for (String key : requiredEntitiesSection.getKeys(false)) {
             List<String> entityTypes = section.getStringList("required-entities." + key + ".types");
             int requiredAmount = section.getInt("required-entities." + key + ".amount");
-            requiredEntities.put(new RequirementsList(entityTypes), requiredAmount);
+            requiredEntities.put(new Requirements(entityTypes), requiredAmount);
         }
 
         resetAfterFinish = section.getBoolean("reset-after-finish", false);
@@ -82,7 +82,7 @@ public final class KillsMissions extends Mission<DataTracker> implements Listene
         int requiredEntities = 0;
         int kills = 0;
 
-        for (Map.Entry<RequirementsList, Integer> requiredEntity : this.requiredEntities.entrySet()) {
+        for (Map.Entry<Requirements, Integer> requiredEntity : this.requiredEntities.entrySet()) {
             requiredEntities += requiredEntity.getValue();
             kills += Math.min(killsTracker.getCounts(requiredEntity.getKey()), requiredEntity.getValue());
         }
@@ -99,7 +99,7 @@ public final class KillsMissions extends Mission<DataTracker> implements Listene
 
         int kills = 0;
 
-        for (Map.Entry<RequirementsList, Integer> requiredEntity : this.requiredEntities.entrySet())
+        for (Map.Entry<Requirements, Integer> requiredEntity : this.requiredEntities.entrySet())
             kills += Math.min(killsTracker.getCounts(requiredEntity.getKey()), requiredEntity.getValue());
 
         return kills;
@@ -212,7 +212,7 @@ public final class KillsMissions extends Mission<DataTracker> implements Listene
         if (entity == null || entity instanceof ArmorStand)
             return false;
 
-        for (RequirementsList requirement : requiredEntities.keySet()) {
+        for (Requirements requirement : requiredEntities.keySet()) {
             if (requirement.contains(entity.getType().name()))
                 return true;
         }

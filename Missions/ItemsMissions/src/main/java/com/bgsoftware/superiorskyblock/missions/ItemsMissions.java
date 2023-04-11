@@ -4,7 +4,7 @@ import com.bgsoftware.superiorskyblock.api.SuperiorSkyblock;
 import com.bgsoftware.superiorskyblock.api.missions.Mission;
 import com.bgsoftware.superiorskyblock.api.missions.MissionLoadException;
 import com.bgsoftware.superiorskyblock.api.wrappers.SuperiorPlayer;
-import com.bgsoftware.superiorskyblock.missions.common.RequirementsList;
+import com.bgsoftware.superiorskyblock.missions.common.Requirements;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.configuration.ConfigurationSection;
@@ -26,6 +26,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -34,7 +35,7 @@ import java.util.Set;
 @SuppressWarnings("unused")
 public final class ItemsMissions extends Mission<ItemsMissions.ItemsTracker> implements Listener {
 
-    private final Map<RequirementsList, Integer> requiredItems = new HashMap<>();
+    private final Map<Requirements, Integer> requiredItems = new LinkedHashMap<>();
 
     private SuperiorSkyblock plugin;
 
@@ -50,7 +51,7 @@ public final class ItemsMissions extends Mission<ItemsMissions.ItemsTracker> imp
         for (String key : requiredItemsSection.getKeys(false)) {
             List<String> itemStacks = section.getStringList("required-items." + key + ".types");
             int requiredAmount = section.getInt("required-items." + key + ".amount");
-            requiredItems.put(new RequirementsList(itemStacks), requiredAmount);
+            requiredItems.put(new Requirements(itemStacks), requiredAmount);
         }
 
         Bukkit.getPluginManager().registerEvents(this, plugin);
@@ -78,8 +79,8 @@ public final class ItemsMissions extends Mission<ItemsMissions.ItemsTracker> imp
         if (itemsTracker == null)
             return 0.0;
 
-        for (Map.Entry<RequirementsList, Integer> entry : requiredItems.entrySet()) {
-            RequirementsList requirement = entry.getKey();
+        for (Map.Entry<Requirements, Integer> entry : requiredItems.entrySet()) {
+            Requirements requirement = entry.getKey();
             int requiredAmount = entry.getValue();
 
             int itemAmount = 0;
@@ -129,8 +130,8 @@ public final class ItemsMissions extends Mission<ItemsMissions.ItemsTracker> imp
         if (itemsTracker == null)
             return 0;
 
-        for (Map.Entry<RequirementsList, Integer> entry : requiredItems.entrySet()) {
-            RequirementsList requirement = entry.getKey();
+        for (Map.Entry<Requirements, Integer> entry : requiredItems.entrySet()) {
+            Requirements requirement = entry.getKey();
             int requiredAmount = entry.getValue();
 
             int itemAmount = 0;
@@ -216,7 +217,7 @@ public final class ItemsMissions extends Mission<ItemsMissions.ItemsTracker> imp
         if (itemStack == null)
             return false;
 
-        for (RequirementsList requirement : requiredItems.keySet()) {
+        for (Requirements requirement : requiredItems.keySet()) {
             if (requirement.contains(itemStack.getType().name()))
                 return true;
         }
