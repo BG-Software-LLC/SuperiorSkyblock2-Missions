@@ -8,6 +8,7 @@ import com.bgsoftware.superiorskyblock.api.wrappers.SuperiorPlayer;
 import com.bgsoftware.superiorskyblock.missions.common.DataTracker;
 import com.bgsoftware.superiorskyblock.missions.common.Placeholders;
 import com.bgsoftware.superiorskyblock.missions.common.Requirements;
+import com.bgsoftware.superiorskyblock.missions.farming.PlantType;
 import com.google.common.collect.ImmutableMap;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
@@ -48,21 +49,6 @@ public final class FarmingMissions extends Mission<DataTracker> implements Liste
     private static final BlockFace[] NEARBY_BLOCKS = new BlockFace[]{
             BlockFace.EAST, BlockFace.WEST, BlockFace.NORTH, BlockFace.SOUTH
     };
-
-    private static final Map<String, Integer> MAXIMUM_AGES = new ImmutableMap.Builder<String, Integer>()
-            .put("CARROTS", 7)
-            .put("CARROT", 7)
-            .put("CROPS", 7)
-            .put("WHEAT_SEEDS", 7)
-            .put("WHEAT", 7)
-            .put("POTATO", 7)
-            .put("POTATOES", 7)
-            .put("BEETROOT_SEEDS", 3)
-            .put("BEETROOTS", 3)
-            .put("COCOA", 2)
-            .put("COCOA_BEANS", 2)
-            .put("SWEET_BERRY_BUSH", 3)
-            .build();
 
     private final Map<Requirements, Integer> requiredPlants = new LinkedHashMap<>();
     private final Map<BlockPosition, UUID> playerPlacedPlants = new ConcurrentHashMap<>();
@@ -203,21 +189,11 @@ public final class FarmingMissions extends Mission<DataTracker> implements Liste
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onBlockPlace(BlockPlaceEvent e) {
-        String blockTypeName = e.getBlock().getType().name();
+        Material blockType = e.getBlock().getType();
+        PlantType plantType = PlantType.getByMaterial(blockType);
+        String plantTypeName = plantType == PlantType.UNKNOWN ? blockType.name() : plantType.name();
 
-        switch (blockTypeName) {
-            case "PUMPKIN_STEM":
-                blockTypeName = "PUMPKIN";
-                break;
-            case "MELON_STEM":
-                blockTypeName = "MELON";
-                break;
-            case "BAMBOO_SAPLING":
-                blockTypeName = "BAMBOO";
-                break;
-        }
-
-        if (!isMissionPlant(blockTypeName))
+        if (!isMissionPlant(plantTypeName))
             return;
 
         UUID placerUUID = getPlacerUUID(e.getPlayer());
@@ -268,27 +244,29 @@ public final class FarmingMissions extends Mission<DataTracker> implements Liste
     }
 
     private void handlePlantGrow(Block plantBlock, BlockState newState) {
-        String blockTypeName = newState.getType().name();
+        Material blockType = newState.getType();
+        PlantType plantType = PlantType.getByMaterial(blockType);
+        String plantTypeName = plantType == PlantType.UNKNOWN ? blockType.name() : plantType.name();
 
-        if (!isMissionPlant(blockTypeName))
+        if (!isMissionPlant(plantTypeName))
             return;
 
         int age = getBlockAge(newState);
 
-        if (age < MAXIMUM_AGES.getOrDefault(blockTypeName, 0))
+        if (age < plantType.getMaxAge())
             return;
 
         Location placedBlockLocation = plantBlock.getLocation();
 
-        switch (blockTypeName) {
-            case "CACTUS":
-            case "SUGAR_CANE":
-            case "BAMBOO":
+        switch (plantType) {
+            case CACTUS:
+            case SUGAR_CANE:
+            case BAMBOO:
                 placedBlockLocation = getLowestBlock(plantBlock);
                 break;
-            case "MELON":
-            case "PUMPKIN":
-                Material stemType = blockTypeName.equals("PUMPKIN") ? Material.PUMPKIN_STEM : Material.MELON_STEM;
+            case MELON:
+            case PUMPKIN:
+                Material stemType = plantType == PlantType.PUMPKIN ? Material.PUMPKIN_STEM : Material.MELON_STEM;
 
                 for (BlockFace blockFace : NEARBY_BLOCKS) {
                     Block nearbyBlock = plantBlock.getRelative(blockFace);
@@ -327,7 +305,7 @@ public final class FarmingMissions extends Mission<DataTracker> implements Liste
         if (farmingTracker == null)
             return;
 
-        farmingTracker.track(blockTypeName, 1);
+        farmingTracker.track(plantTypeName, 1);
 
         Bukkit.getScheduler().runTaskLaterAsynchronously(plugin, () -> superiorPlayer.runIfOnline(player -> {
             if (canComplete(superiorPlayer))
