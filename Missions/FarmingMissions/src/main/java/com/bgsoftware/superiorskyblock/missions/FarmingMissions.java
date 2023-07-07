@@ -40,13 +40,17 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 public final class FarmingMissions extends Mission<DataTracker> implements Listener {
 
-    private static final BlockFace[] NEARBY_BLOCKS = new BlockFace[]{
+    private static final BlockFace[] STEM_NEARBY_BLOCKS = new BlockFace[]{
             BlockFace.EAST, BlockFace.WEST, BlockFace.NORTH, BlockFace.SOUTH
+    };
+    private static final BlockFace[] CHORUS_NEARBY_BLOCKS = new BlockFace[]{
+            BlockFace.EAST, BlockFace.WEST, BlockFace.NORTH, BlockFace.SOUTH, BlockFace.DOWN
     };
 
     private final Map<Requirements, Integer> requiredPlants = new LinkedHashMap<>();
@@ -260,20 +264,14 @@ public final class FarmingMissions extends Mission<DataTracker> implements Liste
             case CACTUS:
             case SUGAR_CANE:
             case BAMBOO:
-                placedBlockLocation = getLowestBlock(plantBlock);
+                placedBlockLocation = getRoot(plantBlock);
                 break;
             case MELON:
             case PUMPKIN:
-                Material stemType = plantType == PlantType.PUMPKIN ? Material.PUMPKIN_STEM : Material.MELON_STEM;
-
-                for (BlockFace blockFace : NEARBY_BLOCKS) {
-                    Block nearbyBlock = plantBlock.getRelative(blockFace);
-                    if (nearbyBlock.getType() == stemType) {
-                        placedBlockLocation = nearbyBlock.getLocation();
-                        break;
-                    }
-                }
-
+                placedBlockLocation = getStemRoot(plantType, plantBlock);
+                break;
+            case CHORUS_PLANT:
+                placedBlockLocation = getChorusRoot(plantBlock);
                 break;
         }
 
@@ -321,7 +319,7 @@ public final class FarmingMissions extends Mission<DataTracker> implements Liste
         }
     }
 
-    private static Location getLowestBlock(Block original) {
+    private static Location getRoot(Block original) {
         Block lastSimilarBlock = original.getRelative(BlockFace.DOWN);
 
         Material originalType = lastSimilarBlock.getType();
@@ -331,6 +329,43 @@ public final class FarmingMissions extends Mission<DataTracker> implements Liste
         }
 
         return lastSimilarBlock.getLocation().add(0, 1, 0);
+    }
+
+    private static Location getStemRoot(PlantType plantType, Block plantBlock) {
+        Material stemType = plantType == PlantType.PUMPKIN ? Material.PUMPKIN_STEM : Material.MELON_STEM;
+
+        for (BlockFace blockFace : STEM_NEARBY_BLOCKS) {
+            Block nearbyBlock = plantBlock.getRelative(blockFace);
+            if (nearbyBlock.getType() == stemType) {
+                return nearbyBlock.getLocation();
+            }
+        }
+
+        return plantBlock.getLocation();
+    }
+
+    private static Location getChorusRoot(Block plantBlock) {
+        return findChorusRoot(plantBlock, BlockFace.SELF).orElseGet(plantBlock::getLocation);
+    }
+
+    private static Optional<Location> findChorusRoot(Block plantBlock, BlockFace ignoredFace) {
+        Block downBlock = plantBlock.getRelative(BlockFace.DOWN);
+
+        if (downBlock.getType() == Material.END_STONE)
+            return Optional.of(plantBlock.getLocation());
+
+        for (BlockFace blockFace : CHORUS_NEARBY_BLOCKS) {
+            if (blockFace != ignoredFace) {
+                Block nearbyBlock = plantBlock.getRelative(blockFace);
+                if (PlantType.getByType(nearbyBlock.getType()) == PlantType.CHORUS_PLANT) {
+                    Optional<Location> nearbyResult = findChorusRoot(nearbyBlock, blockFace.getOppositeFace());
+                    if (nearbyResult.isPresent())
+                        return nearbyResult;
+                }
+            }
+        }
+
+        return Optional.empty();
     }
 
     private UUID getPlacerUUID(Player player) {
