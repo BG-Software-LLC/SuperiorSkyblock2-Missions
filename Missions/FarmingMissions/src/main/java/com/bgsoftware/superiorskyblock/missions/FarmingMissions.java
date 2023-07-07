@@ -9,7 +9,6 @@ import com.bgsoftware.superiorskyblock.missions.common.DataTracker;
 import com.bgsoftware.superiorskyblock.missions.common.Placeholders;
 import com.bgsoftware.superiorskyblock.missions.common.Requirements;
 import com.bgsoftware.superiorskyblock.missions.farming.PlantType;
-import com.google.common.collect.ImmutableMap;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -190,7 +189,7 @@ public final class FarmingMissions extends Mission<DataTracker> implements Liste
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onBlockPlace(BlockPlaceEvent e) {
         Material blockType = e.getBlock().getType();
-        PlantType plantType = PlantType.getByMaterial(blockType);
+        PlantType plantType = PlantType.getBySaplingType(blockType);
         String plantTypeName = plantType == PlantType.UNKNOWN ? blockType.name() : plantType.name();
 
         if (!isMissionPlant(plantTypeName))
@@ -245,15 +244,14 @@ public final class FarmingMissions extends Mission<DataTracker> implements Liste
 
     private void handlePlantGrow(Block plantBlock, BlockState newState) {
         Material blockType = newState.getType();
-        PlantType plantType = PlantType.getByMaterial(blockType);
+        PlantType plantType = PlantType.getByType(blockType);
         String plantTypeName = plantType == PlantType.UNKNOWN ? blockType.name() : plantType.name();
 
         if (!isMissionPlant(plantTypeName))
             return;
 
-        int age = getBlockAge(newState);
-
-        if (age < plantType.getMaxAge())
+        int maxAge = plantType.getMaxAge();
+        if (maxAge > 0 && getBlockAge(newState) < maxAge)
             return;
 
         Location placedBlockLocation = plantBlock.getLocation();
