@@ -6,7 +6,7 @@ import java.util.EnumMap;
 
 public enum PlantType {
 
-    BAMBOO(0, "BAMBOO"),
+    BAMBOO(0, "BAMBOO", "BAMBOO_SAPLING"),
     BEETROOT(3, "BEETROOT", "BEETROOTS", "BEETROOT_SEEDS"),
     CACTUS(0, "CACTUS"),
     CARROT(7, "CARROT", "CARROTS"),
