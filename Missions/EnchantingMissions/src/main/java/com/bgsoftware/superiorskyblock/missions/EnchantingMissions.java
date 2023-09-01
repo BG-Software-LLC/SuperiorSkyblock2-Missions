@@ -5,9 +5,9 @@ import com.bgsoftware.superiorskyblock.api.missions.Mission;
 import com.bgsoftware.superiorskyblock.api.missions.MissionLoadException;
 import com.bgsoftware.superiorskyblock.api.wrappers.SuperiorPlayer;
 import com.bgsoftware.superiorskyblock.missions.common.DataTracker;
+import com.bgsoftware.superiorskyblock.missions.common.Placeholders;
 import com.bgsoftware.superiorskyblock.missions.common.Requirements;
 import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.enchantments.Enchantment;
@@ -36,7 +36,7 @@ import java.util.regex.Pattern;
 
 public final class EnchantingMissions extends Mission<DataTracker> implements Listener {
 
-    private static final Pattern PERCENTAGE_PATTERN = Pattern.compile("(.*)\\{enchanted_(.+?)}(.*)");
+    private static final Pattern ENCHANTED_PATTERN = Pattern.compile("\\{enchanted_(.+?)}");
 
     private final Map<Requirements, RequiredEnchantment> requiredEnchantments = new LinkedHashMap<>();
 
@@ -146,13 +146,34 @@ public final class EnchantingMissions extends Mission<DataTracker> implements Li
         if (itemMeta == null)
             return;
 
+        Placeholders.PlaceholdersFunctions<RequiredEnchantment> placeholdersFunctions = new Placeholders.PlaceholdersFunctions<RequiredEnchantment>() {
+            @Override
+            public RequiredEnchantment getRequirementFromKey(String key) {
+                return requiredEnchantments.entrySet().stream()
+                        .filter(e -> e.getKey().contains(key)).
+                        findFirst()
+                        .map(Map.Entry::getValue)
+                        .orElse(null);
+            }
+
+            @Override
+            public Optional<Integer> lookupRequirement(RequiredEnchantment requirement) {
+                return requirement == null ? Optional.empty() : Optional.of(requirement.amount);
+            }
+
+            @Override
+            public int getCountForRequirement(RequiredEnchantment requirement) {
+                return enchantsTracker.getCount(requirement.key);
+            }
+        };
+
         if (itemMeta.hasDisplayName())
-            itemMeta.setDisplayName(parsePlaceholders(enchantsTracker, itemMeta.getDisplayName()));
+            itemMeta.setDisplayName(parsePlaceholders(placeholdersFunctions, enchantsTracker, itemMeta.getDisplayName()));
 
         if (itemMeta.hasLore()) {
             List<String> lore = new ArrayList<>();
             for (String line : Objects.requireNonNull(itemMeta.getLore()))
-                lore.add(parsePlaceholders(enchantsTracker, line));
+                lore.add(parsePlaceholders(placeholdersFunctions, enchantsTracker, line));
             itemMeta.setLore(lore);
         }
 
@@ -257,22 +278,23 @@ public final class EnchantingMissions extends Mission<DataTracker> implements Li
         }), 2L);
     }
 
-    private String parsePlaceholders(DataTracker enchantsTracker, String line) {
-        Matcher matcher = PERCENTAGE_PATTERN.matcher(line);
+    private String parsePlaceholders(Placeholders.PlaceholdersFunctions<RequiredEnchantment> placeholdersFunctions,
+                                     DataTracker enchantsTracker, String line) {
+        Matcher matcher = ENCHANTED_PATTERN.matcher(line);
 
-        if (matcher.matches()) {
-            String requiredBlock = matcher.group(2).toUpperCase();
+        if (matcher.find()) {
+            String requiredBlock = matcher.group(1).toUpperCase();
 
             Optional<Map.Entry<Requirements, RequiredEnchantment>> entry = requiredEnchantments.entrySet().stream()
                     .filter(e -> e.getKey().contains(requiredBlock)).findAny();
 
             if (entry.isPresent()) {
-                line = line.replace("{enchanted_" + matcher.group(2) + "}",
-                        enchantsTracker.getCount(entry.get().getValue().key) > 0 ? enchantedPlaceholder : notEnchantedPlaceholder);
+                RequiredEnchantment requiredEnchantment = entry.get().getValue();
+                line = matcher.replaceAll(enchantsTracker.getCount(requiredEnchantment.key) > 0 ? enchantedPlaceholder : notEnchantedPlaceholder);
             }
         }
 
-        return ChatColor.translateAlternateColorCodes('&', line);
+        return Placeholders.parsePlaceholders(line, placeholdersFunctions);
     }
 
     private static class RequiredEnchantment {
