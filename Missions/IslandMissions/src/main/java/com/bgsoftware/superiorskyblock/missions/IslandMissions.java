@@ -3,6 +3,7 @@ package com.bgsoftware.superiorskyblock.missions;
 import com.bgsoftware.superiorskyblock.api.SuperiorSkyblock;
 import com.bgsoftware.superiorskyblock.api.events.IslandEvent;
 import com.bgsoftware.superiorskyblock.api.events.IslandTransferEvent;
+import com.bgsoftware.superiorskyblock.api.events.MissionCompleteEvent;
 import com.bgsoftware.superiorskyblock.api.missions.Mission;
 import com.bgsoftware.superiorskyblock.api.missions.MissionLoadException;
 import com.bgsoftware.superiorskyblock.api.scripts.IScriptEngine;
@@ -109,7 +110,8 @@ public final class IslandMissions extends Mission<Boolean> implements Listener {
 
         handlerList.register(new DynamicRegisteredListener(plugin, (listener, event) -> {
             try {
-                if (eventClass.isAssignableFrom(event.getClass()) && event instanceof IslandEvent) {
+                if (eventClass.isAssignableFrom(event.getClass()) &&
+                        (event instanceof IslandEvent || event instanceof MissionCompleteEvent)) {
                     boolean isAsync = event.isAsynchronous();
 
                     if (!isAsync) {
@@ -123,12 +125,12 @@ public final class IslandMissions extends Mission<Boolean> implements Listener {
                         superiorPlayer = ((IslandTransferEvent) event).getOldOwner();
                         targetPlayer = ((IslandTransferEvent) event).getNewOwner();
                     } else {
-                        superiorPlayer = getPlayerMethod == null ? ((IslandEvent) event).getIsland().getOwner() :
-                                (SuperiorPlayer) getPlayerMethod.invoke(event);
+                        superiorPlayer = getPlayerMethod != null ? (SuperiorPlayer) getPlayerMethod.invoke(event) :
+                                event instanceof IslandEvent ? ((IslandEvent) event).getIsland().getOwner() : null;
                         targetPlayer = getTargetMethod == null ? null : (SuperiorPlayer) getTargetMethod.invoke(event);
                     }
 
-                    tryComplete((IslandEvent) event, superiorPlayer, targetPlayer, isTarget);
+                    tryComplete(event, superiorPlayer, targetPlayer, isTarget);
 
                     if (!isAsync) {
                         timings.stopTiming();
@@ -142,7 +144,7 @@ public final class IslandMissions extends Mission<Boolean> implements Listener {
         }));
     }
 
-    private void tryComplete(IslandEvent event, SuperiorPlayer superiorPlayer, SuperiorPlayer targetPlayer, boolean isTarget) {
+    private void tryComplete(Event event, SuperiorPlayer superiorPlayer, SuperiorPlayer targetPlayer, boolean isTarget) {
         boolean success = false;
 
         SimpleBindings bindings = new SimpleBindings();
