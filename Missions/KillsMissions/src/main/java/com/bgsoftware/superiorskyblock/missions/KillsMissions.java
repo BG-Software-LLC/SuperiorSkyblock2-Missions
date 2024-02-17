@@ -17,6 +17,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.entity.Projectile;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
+import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
@@ -70,6 +71,10 @@ public final class KillsMissions extends Mission<DataTracker> implements Listene
                 this.getEntityCount = entity -> 1;
             }
         }, 1L);
+    }
+
+    public void unload() {
+        HandlerList.unregisterAll(this);
     }
 
     @Override

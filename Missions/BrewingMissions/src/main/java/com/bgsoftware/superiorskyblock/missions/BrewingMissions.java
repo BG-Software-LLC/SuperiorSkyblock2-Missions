@@ -16,6 +16,7 @@ import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
+import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.inventory.BrewEvent;
@@ -102,6 +103,10 @@ public final class BrewingMissions extends Mission<BrewingMissions.BrewingTracke
         resetAfterFinish = section.getBoolean("reset-after-finish", false);
 
         Bukkit.getPluginManager().registerEvents(this, plugin);
+    }
+
+    public void unload() {
+        HandlerList.unregisterAll(this);
     }
 
     @Override

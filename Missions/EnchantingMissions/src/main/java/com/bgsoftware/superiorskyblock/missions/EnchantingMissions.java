@@ -14,6 +14,7 @@ import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
+import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
 import org.bukkit.event.enchantment.EnchantItemEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
@@ -26,6 +27,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -39,6 +41,7 @@ public final class EnchantingMissions extends Mission<DataTracker> implements Li
     private static final Pattern ENCHANTED_PATTERN = Pattern.compile("\\{enchanted_(.+?)}");
 
     private final Map<Requirements, RequiredEnchantment> requiredEnchantments = new LinkedHashMap<>();
+    private final List<Listener> registeredListeners = new LinkedList<>();
 
     private String enchantedPlaceholder, notEnchantedPlaceholder;
     private SuperiorSkyblock plugin;
@@ -78,16 +81,21 @@ public final class EnchantingMissions extends Mission<DataTracker> implements Li
             setClearMethod(DataTracker::clear);
         }
 
-        Bukkit.getPluginManager().registerEvents(this, plugin);
+        registerListener(this);
 
         enchantedPlaceholder = section.getString("enchanted-placeholder", "Yes");
         notEnchantedPlaceholder = section.getString("not-enchanted-placeholder", "No");
 
         try {
             Class.forName("org.bukkit.event.inventory.PrepareAnvilEvent");
-            Bukkit.getPluginManager().registerEvents(new PrepareAnvilListener(), plugin);
+            registerListener(new PrepareAnvilListener());
         } catch (Exception ignored) {
         }
+    }
+
+    public void unload() {
+        this.registeredListeners.forEach(HandlerList::unregisterAll);
+        this.registeredListeners.clear();
     }
 
     @Override
@@ -295,6 +303,11 @@ public final class EnchantingMissions extends Mission<DataTracker> implements Li
         }
 
         return Placeholders.parsePlaceholders(line, placeholdersFunctions);
+    }
+
+    private void registerListener(Listener listener) {
+        Bukkit.getPluginManager().registerEvents(listener, plugin);
+        this.registeredListeners.add(listener);
     }
 
     private static class RequiredEnchantment {

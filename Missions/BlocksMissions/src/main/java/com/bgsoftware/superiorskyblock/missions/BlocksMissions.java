@@ -22,6 +22,7 @@ import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
+import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockPistonExtendEvent;
@@ -47,6 +48,7 @@ public class BlocksMissions extends Mission<DataTracker> implements Listener {
     private static final BlocksTracker BLOCKS_TRACKER = new BlocksTracker();
 
     private final Map<Requirements, Integer> requiredBlocks = new LinkedHashMap<>();
+    private final List<Listener> registeredListeners = new LinkedList<>();
 
     private boolean onlyNatural, blocksPlacement, replaceBlocks;
     private SuperiorSkyblock plugin;
@@ -71,21 +73,26 @@ public class BlocksMissions extends Mission<DataTracker> implements Listener {
         blocksPlacement = section.getBoolean("blocks-placement", false);
         replaceBlocks = section.getBoolean("blocks-replace", false);
 
-        Bukkit.getPluginManager().registerEvents(this, plugin);
+        registerListener(this);
         Bukkit.getScheduler().runTaskLater(plugin, () -> {
             if (Bukkit.getPluginManager().isPluginEnabled("WildStacker")) {
-                Bukkit.getPluginManager().registerEvents(new WildStackerListener(), plugin);
+                registerListener(new WildStackerListener());
                 this.isBarrelCheck = block -> WildStackerAPI.getWildStacker().getSystemManager().isStackedBarrel(block);
             } else {
                 this.isBarrelCheck = block -> false;
             }
 
             if (Bukkit.getPluginManager().isPluginEnabled("WildTools")) {
-                Bukkit.getPluginManager().registerEvents(new WildToolsListener(), plugin);
+                registerListener(new WildToolsListener());
             }
         }, 1L);
 
         setClearMethod(DataTracker::clear);
+    }
+
+    public void unload() {
+        this.registeredListeners.forEach(HandlerList::unregisterAll);
+        this.registeredListeners.clear();
     }
 
     @Override
@@ -424,6 +431,11 @@ public class BlocksMissions extends Mission<DataTracker> implements Listener {
         }
 
         return false;
+    }
+
+    private void registerListener(Listener listener) {
+        Bukkit.getPluginManager().registerEvents(listener, plugin);
+        this.registeredListeners.add(listener);
     }
 
     private class BlockInfo {

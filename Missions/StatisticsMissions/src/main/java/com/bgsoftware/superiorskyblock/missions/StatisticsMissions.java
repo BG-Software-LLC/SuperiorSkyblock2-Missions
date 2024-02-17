@@ -14,6 +14,7 @@ import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
+import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerStatisticIncrementEvent;
 import org.bukkit.inventory.ItemStack;
@@ -50,6 +51,10 @@ public final class StatisticsMissions extends Mission<Void> implements Listener 
         }
 
         Bukkit.getPluginManager().registerEvents(this, plugin);
+    }
+
+    public void unload() {
+        HandlerList.unregisterAll(this);
     }
 
     @Override

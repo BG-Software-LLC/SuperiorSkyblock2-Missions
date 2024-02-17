@@ -70,6 +70,10 @@ public final class IslandMissions extends Mission<Boolean> implements Listener {
         Bukkit.getPluginManager().registerEvents(this, plugin);
     }
 
+    public void unload() {
+        HandlerList.unregisterAll(this);
+    }
+
     @Override
     public double getProgress(SuperiorPlayer superiorPlayer) {
         return get(superiorPlayer) == null ? 0.0 : 1.0;

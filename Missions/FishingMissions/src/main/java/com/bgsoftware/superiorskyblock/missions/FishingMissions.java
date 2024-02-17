@@ -11,6 +11,7 @@ import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Item;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
+import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerFishEvent;
 import org.bukkit.inventory.ItemStack;
@@ -80,6 +81,10 @@ public final class FishingMissions extends Mission<FishingMissions.FishingTracke
         Bukkit.getPluginManager().registerEvents(this, plugin);
 
         setClearMethod(fishingTracker -> fishingTracker.caughtItems.clear());
+    }
+
+    public void unload() {
+        HandlerList.unregisterAll(this);
     }
 
     @Override
