@@ -21,8 +21,9 @@ public class BlocksTracker {
         getComponent(trackingType, block.getWorld()).add(block.getX(), block.getY(), block.getZ());
     }
 
-    public void untrackBlock(TrackingType trackingType, Block block) {
-        ifComponentExists(trackingType, block.getWorld(), component -> component.remove(block.getX(), block.getY(), block.getZ()));
+    public boolean untrackBlock(TrackingType trackingType, Block block) {
+        return ifComponentExists(trackingType, block.getWorld(), false,
+                component -> component.remove(block.getX(), block.getY(), block.getZ()));
     }
 
     public boolean isTracked(TrackingType trackingType, Block block) {

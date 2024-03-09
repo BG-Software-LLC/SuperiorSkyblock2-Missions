@@ -273,8 +273,8 @@ public class BlocksMissions extends Mission<DataTracker> implements Listener {
 
         if (blocksPlacement) {
             if (!replaceBlocks && isMissionBlock(blockInfo)) {
-                BLOCKS_TRACKER.untrackBlock(BlocksTracker.TrackingType.PLACED_BLOCKS, e.getBlock());
-                blocksCounter.track(blockInfo.getBlockKey(), getBlockAmount(e.getPlayer(), e.getBlock()) * -1);
+                if (BLOCKS_TRACKER.untrackBlock(BlocksTracker.TrackingType.PLACED_BLOCKS, e.getBlock()))
+                    blocksCounter.track(blockInfo.getBlockKey(), getBlockAmount(e.getPlayer(), e.getBlock()) * -1);
             }
             return;
         }
