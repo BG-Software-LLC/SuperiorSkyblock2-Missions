@@ -53,7 +53,7 @@ public class BlocksMissions extends Mission<DataTracker> implements Listener {
     private boolean onlyNatural, blocksPlacement, replaceBlocks;
     private SuperiorSkyblock plugin;
 
-    private Predicate<Block> isBarrelCheck;
+    private Predicate<Block> isBarrelCheck = block -> false;
 
     @Override
     public void load(JavaPlugin plugin, ConfigurationSection section) throws MissionLoadException {
@@ -78,8 +78,6 @@ public class BlocksMissions extends Mission<DataTracker> implements Listener {
             if (Bukkit.getPluginManager().isPluginEnabled("WildStacker")) {
                 registerListener(new WildStackerListener());
                 this.isBarrelCheck = block -> WildStackerAPI.getWildStacker().getSystemManager().isStackedBarrel(block);
-            } else {
-                this.isBarrelCheck = block -> false;
             }
 
             if (Bukkit.getPluginManager().isPluginEnabled("WildTools")) {
