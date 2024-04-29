@@ -7,7 +7,6 @@ repositories {
 dependencies {
     compileOnly "com.bgsoftware:WildStackerAPI:3.6.3"
     compileOnly "com.bgsoftware:WildToolsAPI:2.11.4"
-    compileOnly "com.bgsoftware.common.reflection:ReflectionUtils:latest"
 }
 
 shadowJar {

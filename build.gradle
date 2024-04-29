@@ -28,6 +28,10 @@ subprojects {
         compileOnly "com.bgsoftware:SuperiorSkyblockAPI:2023.2"
     }
 
+    shadowJar {
+        relocate 'com.bgsoftware.common', 'com.bgsoftware.superiorskyblock.libs.com.bgsoftware.common'
+    }
+
     build {
         dependsOn shadowJar
     }
