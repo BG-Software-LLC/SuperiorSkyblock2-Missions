@@ -370,7 +370,7 @@ public final class BrewingMissions extends Mission<BrewingMissions.BrewingTracke
             try {
                 potionType = PotionType.valueOf(sections[0]);
             } catch (IllegalArgumentException ex) {
-                throw new IllegalArgumentException("This is not a valid potion data.");
+                throw new IllegalArgumentException("Potion type '" + sections[0] + "' is invalid.");
             }
 
             boolean upgraded = sections.length >= 2 && Boolean.parseBoolean(sections[1]);
