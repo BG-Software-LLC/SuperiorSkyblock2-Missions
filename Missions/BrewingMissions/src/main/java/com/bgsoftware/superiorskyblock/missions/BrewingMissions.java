@@ -66,8 +66,10 @@ public final class BrewingMissions extends Mission<BrewingMissions.BrewingTracke
         for (String key : requiredPotionsSection.getKeys(false)) {
             Set<PotionData> requiredPotions = new LinkedHashSet<>();
 
-            for (String potionSectionName : section.getConfigurationSection("required-potions." + key + ".potions").getKeys(false)) {
-                ConfigurationSection potionSection = section.getConfigurationSection("required-potions." + key + ".potions." + potionSectionName);
+            ConfigurationSection potionsSection = section.getConfigurationSection("required-potions." + key + ".potions");
+
+            for (String potionSectionName : potionsSection.getKeys(false)) {
+                ConfigurationSection potionSection = potionsSection.getConfigurationSection(potionSectionName);
 
                 if (potionSection == null) {
                     plugin.getLogger().info(ChatColor.RED + "Potion section " + potionSectionName + " is invalid, skipping...");
@@ -79,7 +81,8 @@ public final class BrewingMissions extends Mission<BrewingMissions.BrewingTracke
                 try {
                     potionType = PotionType.valueOf(potionSection.getString("type"));
                 } catch (Exception ex) {
-                    plugin.getLogger().info(ChatColor.RED + "Potion type in section" + potionSectionName + " is invalid, skipping...");
+                    plugin.getLogger().info(ChatColor.RED + "Potion type in section "
+                            + potionsSection.getCurrentPath() + "." + potionSectionName + " is invalid, skipping...");
                     continue;
                 }
 
