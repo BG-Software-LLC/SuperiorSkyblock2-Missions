@@ -2,15 +2,9 @@ package com.bgsoftware.superiorskyblock.missions.blocks;
 
 import com.bgsoftware.common.reflection.ReflectMethod;
 import org.bukkit.World;
-import org.bukkit.configuration.ConfigurationSection;
 
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
+import java.util.BitSet;
 import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
 
 public class BlocksTrackingComponent {
 
@@ -18,7 +12,7 @@ public class BlocksTrackingComponent {
 
     // Key represents chunk's coords
     // Value represents all blocks broken in that chunk
-    private final Map<Long, Set<Integer>> TRACKED_BLOCKS = new HashMap<>();
+    private TrackedBlocksData trackedBlocksData = new TrackedBlocksData();
 
     private final int worldMinHeight;
 
@@ -34,38 +28,27 @@ public class BlocksTrackingComponent {
         return worldMinHeight;
     }
 
-    public boolean add(int blockX, int blockY, int blockZ) {
+    public void add(int blockX, int blockY, int blockZ) {
         long chunkKey = serializeChunk(blockX >> 4, blockZ >> 4);
-        return TRACKED_BLOCKS.computeIfAbsent(chunkKey, key -> new HashSet<>())
-                .add(serializeLocation(blockX, blockY, blockZ));
+        this.trackedBlocksData.track(chunkKey, serializeLocation(blockX, blockY, blockZ));
     }
 
     public boolean remove(int blockX, int blockY, int blockZ) {
         long chunkKey = serializeChunk(blockX >> 4, blockZ >> 4);
-        return Optional.ofNullable(TRACKED_BLOCKS.get(chunkKey))
-                .map(set -> set.remove(serializeLocation(blockX, blockY, blockZ)))
-                .orElse(false);
+        return this.trackedBlocksData.untrack(chunkKey, () -> serializeLocation(blockX, blockY, blockZ));
     }
 
     public boolean contains(int blockX, int blockY, int blockZ) {
         long chunkKey = serializeChunk(blockX >> 4, blockZ >> 4);
-        return Optional.ofNullable(TRACKED_BLOCKS.get(chunkKey))
-                .map(set -> set.contains(serializeLocation(blockX, blockY, blockZ)))
-                .orElse(false);
+        return this.trackedBlocksData.contains(chunkKey, () -> serializeLocation(blockX, blockY, blockZ));
     }
 
-    public void loadBlocks(ConfigurationSection worldSection) {
-        for (String chunkKey : worldSection.getKeys(false)) {
-            List<Integer> trackedBlocks = worldSection.getIntegerList(chunkKey);
-            try {
-                TRACKED_BLOCKS.put(Long.parseLong(chunkKey), new HashSet<>(trackedBlocks));
-            } catch (NumberFormatException ignored) {
-            }
-        }
+    public void loadBlocks(TrackedBlocksData trackedBlocksData) {
+        this.trackedBlocksData = trackedBlocksData;
     }
 
-    public Map<Long, Set<Integer>> getBlocks() {
-        return Collections.unmodifiableMap(TRACKED_BLOCKS);
+    public Map<Long, BitSet> getBlocks() {
+        return this.trackedBlocksData.getBlocks();
     }
 
     private int serializeLocation(int blockX, int blockY, int blockZ) {
