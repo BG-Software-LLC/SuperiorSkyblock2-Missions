@@ -6,7 +6,6 @@ import com.bgsoftware.superiorskyblock.api.missions.Mission;
 import com.bgsoftware.superiorskyblock.api.missions.MissionLoadException;
 import com.bgsoftware.superiorskyblock.api.wrappers.SuperiorPlayer;
 import com.bgsoftware.superiorskyblock.missions.common.DataTracker;
-import com.bgsoftware.superiorskyblock.missions.common.MutableBoolean;
 import com.bgsoftware.superiorskyblock.missions.common.Placeholders;
 import com.bgsoftware.superiorskyblock.missions.common.Requirements;
 import com.bgsoftware.superiorskyblock.missions.farming.PlantPosition;
@@ -48,8 +47,6 @@ import java.util.Optional;
 import java.util.UUID;
 
 public final class FarmingMissions extends Mission<DataTracker> implements Listener {
-
-    private static final PlantsTracker PLANTS_TRACKER = new PlantsTracker();
 
     private static final BlockFace[] STEM_NEARBY_BLOCKS = new BlockFace[]{
             BlockFace.EAST, BlockFace.WEST, BlockFace.NORTH, BlockFace.SOUTH
@@ -133,41 +130,13 @@ public final class FarmingMissions extends Mission<DataTracker> implements Liste
 
     @Override
     public void saveProgress(ConfigurationSection section) {
-        MutableBoolean savedData = new MutableBoolean(false);
-
         for (Map.Entry<SuperiorPlayer, DataTracker> entry : entrySet()) {
             String uuid = entry.getKey().getUniqueId().toString();
-            entry.getValue().getCounts().forEach((plant, count) -> {
-                section.set("grown-plants." + uuid + "." + plant, count.get());
-                savedData.set(true);
-            });
+            entry.getValue().getCounts().forEach((plant, count) ->
+                    section.set("grown-plants." + uuid + "." + plant, count.get()));
         }
 
-        PLANTS_TRACKER.getPlants().forEach((worldName, worldData) -> {
-            worldData.forEach((chunkKey, blocks) -> {
-                blocks.forEach((block, placer) -> {
-                    String path = "placed-plants." + placer + "." + worldName + "." + chunkKey;
-                    List<Integer> blocksList = section.getIntegerList(path);
-                    blocksList.add(block);
-                    section.set(path, blocksList);
-                    savedData.set(true);
-                });
-            });
-        });
-
-        PLANTS_TRACKER.getLegacyPlants().forEach((worldName, worldData) -> {
-            worldData.forEach((placer, plants) -> {
-                plants.forEach(plant -> {
-                    String plantKey = worldName + ";" + plant.getX() + ";" + plant.getY() + ";" + plant.getZ();
-                    section.set("placed-plants-legacy." + plantKey, placer.toString());
-                    savedData.set(true);
-                });
-            });
-        });
-
-        if (savedData.get()) {
-            section.set("data-version", 1);
-        }
+        PlantsTracker.INSTANCE.save(section);
     }
 
     @Override
@@ -206,7 +175,7 @@ public final class FarmingMissions extends Mission<DataTracker> implements Liste
                             continue;
 
                         for (String chunkKey : worldSection.getKeys(false)) {
-                            PLANTS_TRACKER.load(worldName, Long.parseLong(chunkKey),
+                            PlantsTracker.INSTANCE.load(worldName, Long.parseLong(chunkKey),
                                     worldSection.getIntegerList(chunkKey), placer);
                         }
                     }
@@ -226,7 +195,7 @@ public final class FarmingMissions extends Mission<DataTracker> implements Liste
             if (sections.length == 4) {
                 PlantPosition plantPosition = new PlantPosition(Integer.parseInt(sections[1]),
                         Integer.parseInt(sections[2]), Integer.parseInt(sections[3]));
-                PLANTS_TRACKER.loadLegacy(sections[0], plantPosition, placer);
+                PlantsTracker.INSTANCE.loadLegacy(sections[0], plantPosition, placer);
             }
         }
     }
@@ -270,30 +239,30 @@ public final class FarmingMissions extends Mission<DataTracker> implements Liste
         if (placerUUID == null)
             return;
 
-        PLANTS_TRACKER.track(e.getBlock(), placerUUID);
+        PlantsTracker.INSTANCE.track(e.getBlock(), placerUUID);
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onBlockBreak(BlockBreakEvent e) {
-        PLANTS_TRACKER.untrack(e.getBlock());
+        PlantsTracker.INSTANCE.untrack(e.getBlock());
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onBlockExplode(EntityExplodeEvent e) {
         for (Block block : e.blockList())
-            PLANTS_TRACKER.untrack(block);
+            PlantsTracker.INSTANCE.untrack(block);
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onPistonRetract(BlockPistonRetractEvent e) {
         for (Block block : e.getBlocks())
-            PLANTS_TRACKER.untrack(block);
+            PlantsTracker.INSTANCE.untrack(block);
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onPistonRetract(BlockPistonExtendEvent e) {
         for (Block block : e.getBlocks())
-            PLANTS_TRACKER.untrack(block);
+            PlantsTracker.INSTANCE.untrack(block);
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
@@ -341,7 +310,7 @@ public final class FarmingMissions extends Mission<DataTracker> implements Liste
                 break;
         }
 
-        UUID placerUUID = PLANTS_TRACKER.getPlacer(placedBlockLocation);
+        UUID placerUUID = PlantsTracker.INSTANCE.getPlacer(placedBlockLocation);
 
         if (placerUUID == null)
             return;
@@ -459,61 +428,6 @@ public final class FarmingMissions extends Mission<DataTracker> implements Liste
         }
 
         return false;
-    }
-
-    private static final class BlockPosition {
-
-        private final String worldName;
-        private final int x;
-        private final int y;
-        private final int z;
-
-        static BlockPosition fromLocation(Location location) {
-            return new BlockPosition(location.getWorld().getName(), location.getBlockX(), location.getBlockY(), location.getBlockZ());
-        }
-
-        static BlockPosition fromBlock(Block block) {
-            return new BlockPosition(block.getWorld().getName(), block.getX(), block.getY(), block.getZ());
-        }
-
-        @Nullable
-        static BlockPosition deserialize(String serialized) {
-            String[] sections = serialized.split(";");
-            if (sections.length != 4)
-                return null;
-
-            try {
-                return new BlockPosition(sections[0], Integer.parseInt(sections[1]),
-                        Integer.parseInt(sections[2]), Integer.parseInt(sections[3]));
-            } catch (Exception ex) {
-                return null;
-            }
-        }
-
-        BlockPosition(String worldName, int x, int y, int z) {
-            this.worldName = worldName;
-            this.x = x;
-            this.y = y;
-            this.z = z;
-        }
-
-        String serialize() {
-            return this.worldName + ";" + this.x + ";" + this.y + ";" + this.z;
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) return true;
-            if (o == null || getClass() != o.getClass()) return false;
-            BlockPosition that = (BlockPosition) o;
-            return x == that.x && y == that.y && z == that.z && worldName.equals(that.worldName);
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(worldName, x, y, z);
-        }
-
     }
 
 }

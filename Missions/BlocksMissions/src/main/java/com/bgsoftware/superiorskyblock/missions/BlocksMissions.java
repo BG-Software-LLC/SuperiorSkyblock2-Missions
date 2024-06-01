@@ -44,8 +44,6 @@ import java.util.stream.Collectors;
 
 public class BlocksMissions extends Mission<DataTracker> implements Listener {
 
-    private static final BlocksTracker BLOCKS_TRACKER = new BlocksTracker();
-
     private final Map<Requirements, Integer> requiredBlocks = new LinkedHashMap<>();
     private final List<Listener> registeredListeners = new LinkedList<>();
 
@@ -144,38 +142,7 @@ public class BlocksMissions extends Mission<DataTracker> implements Listener {
             }
         }
 
-        BLOCKS_TRACKER.getBlocks(BlocksTracker.TrackingType.PLACED_BLOCKS).forEach((worldName, trackedData) -> {
-            trackedData.forEach((chunkKey, blocksBitSet) -> {
-                List<Integer> blocks = new LinkedList<>();
-                blocksBitSet.forEach(blocks::add);
-                if (!blocks.isEmpty())
-                    section.set("tracked.placed." + worldName + "." + chunkKey, blocks);
-            });
-        });
-        BLOCKS_TRACKER.getRawData(BlocksTracker.TrackingType.PLACED_BLOCKS).forEach((worldName, trackedBlocksData) -> {
-            trackedBlocksData.getBlocks().forEach((chunkKey, blocksBitSet) -> {
-                List<Integer> blocks = new LinkedList<>();
-                blocksBitSet.forEach(blocks::add);
-                if (!blocks.isEmpty())
-                    section.set("tracked.placed." + worldName + "." + chunkKey, blocks);
-            });
-        });
-        BLOCKS_TRACKER.getBlocks(BlocksTracker.TrackingType.BROKEN_BLOCKS).forEach((worldName, trackedData) -> {
-            trackedData.forEach((chunkKey, blocksBitSet) -> {
-                List<Integer> blocks = new LinkedList<>();
-                blocksBitSet.forEach(blocks::add);
-                if (!blocks.isEmpty())
-                    section.set("tracked.broken." + worldName + "." + chunkKey, blocks);
-            });
-        });
-        BLOCKS_TRACKER.getRawData(BlocksTracker.TrackingType.BROKEN_BLOCKS).forEach((worldName, trackedBlocksData) -> {
-            trackedBlocksData.getBlocks().forEach((chunkKey, blocksBitSet) -> {
-                List<Integer> blocks = new LinkedList<>();
-                blocksBitSet.forEach(blocks::add);
-                if (!blocks.isEmpty())
-                    section.set("tracked.broken." + worldName + "." + chunkKey, blocks);
-            });
-        });
+        BlocksTracker.INSTANCE.save(section);
     }
 
     @Override
@@ -222,14 +189,14 @@ public class BlocksMissions extends Mission<DataTracker> implements Listener {
         if (trackedPlacedSection != null) {
             for (String worldName : trackedPlacedSection.getKeys(false)) {
                 ConfigurationSection worldSection = trackedPlacedSection.getConfigurationSection(worldName);
-                BLOCKS_TRACKER.loadTrackedBlocks(BlocksTracker.TrackingType.PLACED_BLOCKS, worldName, worldSection);
+                BlocksTracker.INSTANCE.loadTrackedBlocks(BlocksTracker.TrackingType.PLACED_BLOCKS, worldName, worldSection);
             }
         }
 
         if (trackedBrokenSection != null) {
             for (String worldName : trackedBrokenSection.getKeys(false)) {
                 ConfigurationSection worldSection = trackedBrokenSection.getConfigurationSection(worldName);
-                BLOCKS_TRACKER.loadTrackedBlocks(BlocksTracker.TrackingType.BROKEN_BLOCKS, worldName, worldSection);
+                BlocksTracker.INSTANCE.loadTrackedBlocks(BlocksTracker.TrackingType.BROKEN_BLOCKS, worldName, worldSection);
             }
         }
     }
@@ -272,7 +239,7 @@ public class BlocksMissions extends Mission<DataTracker> implements Listener {
 
         if (blocksPlacement) {
             if (!replaceBlocks && isMissionBlock(blockInfo)) {
-                if (BLOCKS_TRACKER.untrackBlock(BlocksTracker.TrackingType.PLACED_BLOCKS, e.getBlock()))
+                if (BlocksTracker.INSTANCE.untrackBlock(BlocksTracker.TrackingType.PLACED_BLOCKS, e.getBlock()))
                     blocksCounter.track(blockInfo.getBlockKey(), getBlockAmount(e.getPlayer(), e.getBlock()) * -1);
             }
             return;
@@ -280,7 +247,7 @@ public class BlocksMissions extends Mission<DataTracker> implements Listener {
 
         handleBlockBreak(e.getBlock(), superiorPlayer, blockInfo);
 
-        BLOCKS_TRACKER.untrackBlock(BlocksTracker.TrackingType.PLACED_BLOCKS, e.getBlock());
+        BlocksTracker.INSTANCE.untrackBlock(BlocksTracker.TrackingType.PLACED_BLOCKS, e.getBlock());
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
@@ -300,7 +267,7 @@ public class BlocksMissions extends Mission<DataTracker> implements Listener {
         if (!onlyNatural && !blocksPlacement)
             return;
 
-        BLOCKS_TRACKER.untrackBlock(BlocksTracker.TrackingType.BROKEN_BLOCKS, e.getBlock());
+        BlocksTracker.INSTANCE.untrackBlock(BlocksTracker.TrackingType.BROKEN_BLOCKS, e.getBlock());
 
         BlockInfo blockInfo = new BlockInfo(e.getBlock());
 
@@ -309,7 +276,7 @@ public class BlocksMissions extends Mission<DataTracker> implements Listener {
 
         if (!blocksPlacement) {
             if (!replaceBlocks)
-                BLOCKS_TRACKER.trackBlock(BlocksTracker.TrackingType.PLACED_BLOCKS, e.getBlock());
+                BlocksTracker.INSTANCE.trackBlock(BlocksTracker.TrackingType.PLACED_BLOCKS, e.getBlock());
             return;
         }
 
@@ -348,7 +315,7 @@ public class BlocksMissions extends Mission<DataTracker> implements Listener {
             for (Location location : e.getBlocks()) {
                 Block block = location.getBlock();
                 handleBlockBreak(block, e.getPlayer());
-                BLOCKS_TRACKER.untrackBlock(BlocksTracker.TrackingType.PLACED_BLOCKS, block);
+                BlocksTracker.INSTANCE.untrackBlock(BlocksTracker.TrackingType.PLACED_BLOCKS, block);
             }
         }
 
@@ -365,7 +332,7 @@ public class BlocksMissions extends Mission<DataTracker> implements Listener {
         if (this.isBarrelCheck.test(block) || !isMissionBlock(blockInfo))
             return;
 
-        if (onlyNatural && BLOCKS_TRACKER.isTracked(BlocksTracker.TrackingType.PLACED_BLOCKS, block))
+        if (onlyNatural && BlocksTracker.INSTANCE.isTracked(BlocksTracker.TrackingType.PLACED_BLOCKS, block))
             return;
 
         handleBlockTrack(BlocksTracker.TrackingType.BROKEN_BLOCKS, superiorPlayer, block, blockInfo,
@@ -374,7 +341,7 @@ public class BlocksMissions extends Mission<DataTracker> implements Listener {
 
     private void handleBlockPistonMove(LinkedList<Block> blockList, BlockFace direction) {
         blockList.removeIf(block -> !isMissionBlock(new BlockInfo(block)) ||
-                !BLOCKS_TRACKER.isTracked(BlocksTracker.TrackingType.PLACED_BLOCKS, block));
+                !BlocksTracker.INSTANCE.isTracked(BlocksTracker.TrackingType.PLACED_BLOCKS, block));
 
         if (blockList.isEmpty())
             return;
@@ -389,8 +356,8 @@ public class BlocksMissions extends Mission<DataTracker> implements Listener {
         List<Block> removedBlocks = new LinkedList<>(blockList);
         removedBlocks.removeAll(movedBlocks);
 
-        removedBlocks.forEach(block -> BLOCKS_TRACKER.untrackBlock(BlocksTracker.TrackingType.PLACED_BLOCKS, block));
-        addedBlocks.forEach(block -> BLOCKS_TRACKER.trackBlock(BlocksTracker.TrackingType.PLACED_BLOCKS, block));
+        removedBlocks.forEach(block -> BlocksTracker.INSTANCE.untrackBlock(BlocksTracker.TrackingType.PLACED_BLOCKS, block));
+        addedBlocks.forEach(block -> BlocksTracker.INSTANCE.trackBlock(BlocksTracker.TrackingType.PLACED_BLOCKS, block));
     }
 
     private void handleBlockTrack(BlocksTracker.TrackingType trackingType, SuperiorPlayer superiorPlayer, Block block,
@@ -400,7 +367,7 @@ public class BlocksMissions extends Mission<DataTracker> implements Listener {
 
         DataTracker blocksCounter = getOrCreate(superiorPlayer, s -> new DataTracker());
 
-        BLOCKS_TRACKER.trackBlock(trackingType, block);
+        BlocksTracker.INSTANCE.trackBlock(trackingType, block);
 
         blocksCounter.track(blockInfo.getBlockKey(), amount);
 

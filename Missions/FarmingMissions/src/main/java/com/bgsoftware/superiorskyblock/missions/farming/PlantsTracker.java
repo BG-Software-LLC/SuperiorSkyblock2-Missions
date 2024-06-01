@@ -1,11 +1,12 @@
 package com.bgsoftware.superiorskyblock.missions.farming;
 
+import com.bgsoftware.superiorskyblock.missions.common.MutableBoolean;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.block.Block;
+import org.bukkit.configuration.ConfigurationSection;
 
 import javax.annotation.Nullable;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
@@ -15,9 +16,16 @@ import java.util.UUID;
 
 public class PlantsTracker {
 
+    public static final PlantsTracker INSTANCE = new PlantsTracker();
+
     private final Map<String, PlantsTrackingComponent> plantsTracker = new HashMap<>();
     private Map<String, TrackedPlantsData> rawData = null;
     private Map<String, Map<UUID, List<PlantPosition>>> legacyRawData = null;
+    private boolean saved = false;
+
+    private PlantsTracker() {
+
+    }
 
     public void track(Block block, UUID placer) {
         track(block.getWorld(), block.getX(), block.getY(), block.getZ(), placer);
@@ -67,22 +75,57 @@ public class PlantsTracker {
                 .computeIfAbsent(placer, i -> new LinkedList<>()).add(plant);
     }
 
-    public Map<String, Map<Long, Map<Integer, UUID>>> getPlants() {
-        Map<String, Map<Long, Map<Integer, UUID>>> plants = new LinkedHashMap<>();
-
-        plantsTracker.forEach((worldName, component) ->
-                plants.put(worldName, component.getPlants()));
-
-        if (this.rawData != null) {
-            this.rawData.forEach((worldName, trackingData) ->
-                    plants.computeIfAbsent(worldName, n -> new HashMap<>()).putAll(trackingData.getPlants()));
+    public void save(ConfigurationSection section) {
+        if (!this.saved) {
+            saveInternal(section);
+            this.saved = true;
         }
-
-        return Collections.unmodifiableMap(plants);
     }
 
-    public Map<String, Map<UUID, List<PlantPosition>>> getLegacyPlants() {
-        return this.legacyRawData == null ? Collections.emptyMap() : Collections.unmodifiableMap(this.legacyRawData);
+    private void saveInternal(ConfigurationSection section) {
+        MutableBoolean savedData = new MutableBoolean(false);
+
+        this.plantsTracker.forEach((worldName, component) -> {
+            component.getPlants().forEach((chunkKey, blocks) -> {
+                blocks.forEach((block, placer) -> {
+                    String path = "placed-plants." + placer + "." + worldName + "." + chunkKey;
+                    List<Integer> blocksList = section.getIntegerList(path);
+                    blocksList.add(block);
+                    section.set(path, blocksList);
+                    savedData.set(true);
+                });
+            });
+        });
+
+        if (this.rawData != null) {
+            this.rawData.forEach((worldName, worldData) -> {
+                worldData.getPlants().forEach((chunkKey, blocks) -> {
+                    blocks.forEach((block, placer) -> {
+                        String path = "placed-plants." + placer + "." + worldName + "." + chunkKey;
+                        List<Integer> blocksList = section.getIntegerList(path);
+                        blocksList.add(block);
+                        section.set(path, blocksList);
+                        savedData.set(true);
+                    });
+                });
+            });
+        }
+
+        if (this.legacyRawData != null) {
+            this.legacyRawData.forEach((worldName, worldData) -> {
+                worldData.forEach((placer, plants) -> {
+                    plants.forEach(plant -> {
+                        String plantKey = worldName + ";" + plant.getX() + ";" + plant.getY() + ";" + plant.getZ();
+                        section.set("placed-plants-legacy." + plantKey, placer.toString());
+                        savedData.set(true);
+                    });
+                });
+            });
+        }
+
+        if (savedData.get()) {
+            section.set("data-version", 1);
+        }
     }
 
     private void loadRawData(World world) {
