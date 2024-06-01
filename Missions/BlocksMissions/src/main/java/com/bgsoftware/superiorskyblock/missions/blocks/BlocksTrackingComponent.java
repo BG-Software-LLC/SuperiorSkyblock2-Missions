@@ -1,14 +1,17 @@
 package com.bgsoftware.superiorskyblock.missions.blocks;
 
+import com.bgsoftware.common.reflection.ClassInfo;
 import com.bgsoftware.common.reflection.ReflectMethod;
 import org.bukkit.World;
 
-import java.util.BitSet;
 import java.util.Map;
 
 public class BlocksTrackingComponent {
 
-    private static final ReflectMethod<Integer> WORLD_GET_MIN_HEIGHT = new ReflectMethod<>(World.class, "getMinHeight");
+    private static final ReflectMethod<Integer> WORLD_GET_MIN_HEIGHT = new ReflectMethod<>(
+            new ClassInfo("CraftWorld", ClassInfo.PackageType.CRAFTBUKKIT),
+            "getMinHeight",
+            new ClassInfo[0]);
 
     // Key represents chunk's coords
     // Value represents all blocks broken in that chunk
@@ -47,7 +50,7 @@ public class BlocksTrackingComponent {
         this.trackedBlocksData = trackedBlocksData;
     }
 
-    public Map<Long, BitSet> getBlocks() {
+    public Map<Long, ChunkBitSet> getBlocks() {
         return this.trackedBlocksData.getBlocks();
     }
 
@@ -60,7 +63,7 @@ public class BlocksTrackingComponent {
         short relativeY = (short) (blockY - this.worldMinHeight);
         byte relativeZ = (byte) (blockZ - chunkMinZ);
 
-        return (relativeY << 16) | (relativeX << 8) | relativeZ;
+        return (relativeY << 8) | (relativeX << 4) | relativeZ;
     }
 
     private static long serializeChunk(int chunkX, int chunkZ) {

@@ -2,7 +2,6 @@ package com.bgsoftware.superiorskyblock.missions.blocks;
 
 import org.bukkit.configuration.ConfigurationSection;
 
-import java.util.BitSet;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -12,13 +11,13 @@ import java.util.function.IntSupplier;
 
 public class TrackedBlocksData {
 
-    private final Map<Long, BitSet> TRACKED_BLOCKS = new HashMap<>();
-    private final Map<Long, BitSet> TRACKED_BLOCKS_VIEW = Collections.unmodifiableMap(TRACKED_BLOCKS);
+    private final Map<Long, ChunkBitSet> TRACKED_BLOCKS = new HashMap<>();
+    private final Map<Long, ChunkBitSet> TRACKED_BLOCKS_VIEW = Collections.unmodifiableMap(TRACKED_BLOCKS);
 
     public TrackedBlocksData(ConfigurationSection section) {
         for (String chunkKey : section.getKeys(false)) {
             List<Integer> trackedBlocks = section.getIntegerList(chunkKey);
-            BitSet bitSet = new BitSet();
+            ChunkBitSet bitSet = new ChunkBitSet();
             trackedBlocks.forEach(bitSet::set);
             try {
                 TRACKED_BLOCKS.put(Long.parseLong(chunkKey), bitSet);
@@ -32,20 +31,12 @@ public class TrackedBlocksData {
     }
 
     public void track(long chunkKey, int block) {
-        TRACKED_BLOCKS.computeIfAbsent(chunkKey, key -> new BitSet()).set(block);
+        TRACKED_BLOCKS.computeIfAbsent(chunkKey, key -> new ChunkBitSet()).set(block);
     }
 
     public boolean untrack(long chunkKey, IntSupplier block) {
         return Optional.ofNullable(TRACKED_BLOCKS.get(chunkKey))
-                .map(bitSet -> {
-                    int blockIdx = block.getAsInt();
-                    if (bitSet.get(blockIdx)) {
-                        bitSet.clear();
-                        return true;
-                    }
-
-                    return false;
-                })
+                .map(bitSet -> bitSet.clear(block.getAsInt()))
                 .orElse(false);
     }
 
@@ -55,7 +46,7 @@ public class TrackedBlocksData {
                 .orElse(false);
     }
 
-    public Map<Long, BitSet> getBlocks() {
+    public Map<Long, ChunkBitSet> getBlocks() {
         return TRACKED_BLOCKS_VIEW;
     }
 

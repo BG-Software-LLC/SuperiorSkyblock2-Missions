@@ -24,7 +24,7 @@ subprojects {
     dependencies {
         compileOnly "org.spigotmc:v1_16_R3:latest"
         compileOnly "org.spigotmc:v1_8_R3-Taco:latest"
-        compileOnly "com.bgsoftware.common.reflection:ReflectionUtils:1.0.2"
+        compileOnly "com.bgsoftware.common.reflection:ReflectionUtils:b7"
         compileOnly "com.bgsoftware:SuperiorSkyblockAPI:2023.2"
     }
 

@@ -147,9 +147,7 @@ public class BlocksMissions extends Mission<DataTracker> implements Listener {
         BLOCKS_TRACKER.getBlocks(BlocksTracker.TrackingType.PLACED_BLOCKS).forEach((worldName, trackedData) -> {
             trackedData.forEach((chunkKey, blocksBitSet) -> {
                 List<Integer> blocks = new LinkedList<>();
-                for (int i = blocksBitSet.nextSetBit(0); i != -1; i = blocksBitSet.nextSetBit(i + 1)) {
-                    blocks.add(i);
-                }
+                blocksBitSet.forEach(blocks::add);
                 if (!blocks.isEmpty())
                     section.set("tracked.placed." + worldName + "." + chunkKey, blocks);
             });
@@ -157,9 +155,7 @@ public class BlocksMissions extends Mission<DataTracker> implements Listener {
         BLOCKS_TRACKER.getRawData(BlocksTracker.TrackingType.PLACED_BLOCKS).forEach((worldName, trackedBlocksData) -> {
             trackedBlocksData.getBlocks().forEach((chunkKey, blocksBitSet) -> {
                 List<Integer> blocks = new LinkedList<>();
-                for (int i = blocksBitSet.nextSetBit(0); i != -1; i = blocksBitSet.nextSetBit(i + 1)) {
-                    blocks.add(i);
-                }
+                blocksBitSet.forEach(blocks::add);
                 if (!blocks.isEmpty())
                     section.set("tracked.placed." + worldName + "." + chunkKey, blocks);
             });
@@ -167,9 +163,7 @@ public class BlocksMissions extends Mission<DataTracker> implements Listener {
         BLOCKS_TRACKER.getBlocks(BlocksTracker.TrackingType.BROKEN_BLOCKS).forEach((worldName, trackedData) -> {
             trackedData.forEach((chunkKey, blocksBitSet) -> {
                 List<Integer> blocks = new LinkedList<>();
-                for (int i = blocksBitSet.nextSetBit(0); i != -1; i = blocksBitSet.nextSetBit(i + 1)) {
-                    blocks.add(i);
-                }
+                blocksBitSet.forEach(blocks::add);
                 if (!blocks.isEmpty())
                     section.set("tracked.broken." + worldName + "." + chunkKey, blocks);
             });
@@ -177,9 +171,7 @@ public class BlocksMissions extends Mission<DataTracker> implements Listener {
         BLOCKS_TRACKER.getRawData(BlocksTracker.TrackingType.BROKEN_BLOCKS).forEach((worldName, trackedBlocksData) -> {
             trackedBlocksData.getBlocks().forEach((chunkKey, blocksBitSet) -> {
                 List<Integer> blocks = new LinkedList<>();
-                for (int i = blocksBitSet.nextSetBit(0); i != -1; i = blocksBitSet.nextSetBit(i + 1)) {
-                    blocks.add(i);
-                }
+                blocksBitSet.forEach(blocks::add);
                 if (!blocks.isEmpty())
                     section.set("tracked.broken." + worldName + "." + chunkKey, blocks);
             });

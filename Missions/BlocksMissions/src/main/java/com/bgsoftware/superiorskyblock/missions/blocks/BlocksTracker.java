@@ -4,7 +4,6 @@ import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.configuration.ConfigurationSection;
 
-import java.util.BitSet;
 import java.util.Collections;
 import java.util.EnumMap;
 import java.util.HashMap;
@@ -34,14 +33,14 @@ public class BlocksTracker {
         this.rawData.computeIfAbsent(trackingType, t -> new HashMap<>()).put(worldName, new TrackedBlocksData(section));
     }
 
-    public Map<String, Map<Long, BitSet>> getBlocks(TrackingType trackingType) {
-        Map<String, Map<Long, BitSet>> blocks = new HashMap<>();
+    public Map<String, Map<Long, ChunkBitSet>> getBlocks(TrackingType trackingType) {
+        Map<String, Map<Long, ChunkBitSet>> blocks = new HashMap<>();
 
         Map<String, BlocksTrackingComponent> trackingComponentMap = this.trackingComponentMap.get(trackingType);
 
         if (trackingComponentMap != null) {
             trackingComponentMap.forEach((worldName, trackingComponent) -> {
-                Map<Long, BitSet> componentBlocks = trackingComponent.getBlocks();
+                Map<Long, ChunkBitSet> componentBlocks = trackingComponent.getBlocks();
                 if (!componentBlocks.isEmpty())
                     blocks.put(worldName, componentBlocks);
             });
