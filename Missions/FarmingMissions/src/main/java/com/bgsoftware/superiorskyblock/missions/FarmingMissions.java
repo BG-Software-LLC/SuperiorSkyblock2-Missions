@@ -6,6 +6,7 @@ import com.bgsoftware.superiorskyblock.api.missions.Mission;
 import com.bgsoftware.superiorskyblock.api.missions.MissionLoadException;
 import com.bgsoftware.superiorskyblock.api.wrappers.SuperiorPlayer;
 import com.bgsoftware.superiorskyblock.missions.common.DataTracker;
+import com.bgsoftware.superiorskyblock.missions.common.MutableBoolean;
 import com.bgsoftware.superiorskyblock.missions.common.Placeholders;
 import com.bgsoftware.superiorskyblock.missions.common.Requirements;
 import com.bgsoftware.superiorskyblock.missions.farming.PlantPosition;
@@ -132,10 +133,14 @@ public final class FarmingMissions extends Mission<DataTracker> implements Liste
 
     @Override
     public void saveProgress(ConfigurationSection section) {
+        MutableBoolean savedData = new MutableBoolean(false);
+
         for (Map.Entry<SuperiorPlayer, DataTracker> entry : entrySet()) {
             String uuid = entry.getKey().getUniqueId().toString();
-            entry.getValue().getCounts().forEach((plant, count) ->
-                    section.set("grown-plants." + uuid + "." + plant, count.get()));
+            entry.getValue().getCounts().forEach((plant, count) -> {
+                section.set("grown-plants." + uuid + "." + plant, count.get());
+                savedData.set(true);
+            });
         }
 
         PLANTS_TRACKER.getPlants().forEach((worldName, worldData) -> {
@@ -145,6 +150,7 @@ public final class FarmingMissions extends Mission<DataTracker> implements Liste
                     List<Integer> blocksList = section.getIntegerList(path);
                     blocksList.add(block);
                     section.set(path, blocksList);
+                    savedData.set(true);
                 });
             });
         });
@@ -154,11 +160,14 @@ public final class FarmingMissions extends Mission<DataTracker> implements Liste
                 plants.forEach(plant -> {
                     String plantKey = worldName + ";" + plant.getX() + ";" + plant.getY() + ";" + plant.getZ();
                     section.set("placed-plants-legacy." + plantKey, placer.toString());
+                    savedData.set(true);
                 });
             });
         });
 
-        section.set("data-version", 1);
+        if (savedData.get()) {
+            section.set("data-version", 1);
+        }
     }
 
     @Override
