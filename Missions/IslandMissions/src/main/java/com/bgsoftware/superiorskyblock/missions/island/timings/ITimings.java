@@ -10,9 +10,13 @@ public interface ITimings {
 
     static ITimings of(Plugin plugin, String name) {
         try {
-            return new TimingsWrapper(plugin, name);
+            return TimingsWrapper.create(plugin, name);
         } catch (Throwable error) {
-            return new LegacyTimingsWrapper(name);
+            try {
+                return LegacyTimingsWrapper.create(name);
+            } catch (Throwable error2) {
+                return DummyTimings.INSTANCE;
+            }
         }
     }
 

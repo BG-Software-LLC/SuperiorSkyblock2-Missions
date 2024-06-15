@@ -6,7 +6,11 @@ public class LegacyTimingsWrapper implements ITimings {
 
     private final CustomTimingsHandler handle;
 
-    public LegacyTimingsWrapper(String name) {
+    public static ITimings create(String name) {
+        return new LegacyTimingsWrapper(name);
+    }
+
+    private LegacyTimingsWrapper(String name) {
         this.handle = new CustomTimingsHandler(name);
     }
 
