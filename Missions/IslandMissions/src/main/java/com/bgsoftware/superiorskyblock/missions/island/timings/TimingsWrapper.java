@@ -34,9 +34,9 @@ public class TimingsWrapper implements ITimings {
                     pluginName, name, pluginHandler, true);
         } else if (TIMINGS_MANAGER_GET_HANDLER.isValid()) {
             Timing pluginHandler = TIMINGS_MANAGER_GET_HANDLER.invoke(null,
-                    pluginName, "Combined Total", TimingsManager.PLUGIN_GROUP_HANDLER, false);
+                    pluginName, "Combined Total", TimingsManager.PLUGIN_GROUP_HANDLER);
             this.handle = TIMINGS_MANAGER_GET_HANDLER.invoke(null,
-                    pluginName, name, pluginHandler, true);
+                    pluginName, name, pluginHandler);
         } else {
             this.handle = null;
         }
