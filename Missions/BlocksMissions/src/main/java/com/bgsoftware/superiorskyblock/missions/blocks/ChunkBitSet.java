@@ -18,7 +18,7 @@ public class ChunkBitSet {
         BitSet bitSet = getBitSetForBlock(index, true);
         if (bitSet == null)
             throw new IllegalStateException();
-        int blockIdx = index & 0xFF;
+        int blockIdx = index & 0xFFF;
         bitSet.set(blockIdx);
     }
 
@@ -26,7 +26,7 @@ public class ChunkBitSet {
         BitSet bitSet = getBitSetForBlock(index, false);
         if (bitSet == null)
             return false;
-        int blockIdx = index & 0xFF;
+        int blockIdx = index & 0xFFF;
         boolean old = bitSet.get(blockIdx);
         bitSet.clear(blockIdx);
         return old;
@@ -36,7 +36,7 @@ public class ChunkBitSet {
         BitSet bitSet = getBitSetForBlock(index, false);
         if (bitSet == null)
             return false;
-        int blockIdx = index & 0xFF;
+        int blockIdx = index & 0xFFF;
         return bitSet.get(blockIdx);
     }
 
