@@ -1,5 +1,6 @@
 package com.bgsoftware.superiorskyblock.missions.blocks;
 
+import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.configuration.ConfigurationSection;
@@ -36,6 +37,11 @@ public class BlocksTracker {
     public boolean isTracked(TrackingType trackingType, Block block) {
         return ifComponentExists(trackingType, block.getWorld(), false,
                 component -> component.contains(block.getX(), block.getY(), block.getZ()));
+    }
+
+    public boolean isTracked(TrackingType trackingType, Location blockLocation) {
+        return ifComponentExists(trackingType, blockLocation.getWorld(), false, component ->
+                component.contains(blockLocation.getBlockX(), blockLocation.getBlockY(), blockLocation.getBlockZ()));
     }
 
     public void loadTrackedBlocks(TrackingType trackingType, String worldName, ConfigurationSection section) {

@@ -47,10 +47,12 @@ public class BlocksMissions extends Mission<DataTracker> implements Listener {
     private final Map<Requirements, Integer> requiredBlocks = new LinkedHashMap<>();
     private final List<Listener> registeredListeners = new LinkedList<>();
 
-    private boolean onlyNatural, blocksPlacement, replaceBlocks;
+    private boolean onlyNatural;
+    private ProgressAction progressAction;
+
     private SuperiorSkyblock plugin;
 
-    private Predicate<Block> isBarrelCheck = block -> false;
+    private Predicate<Location> isBarrelCheck = block -> false;
 
     @Override
     public void load(JavaPlugin plugin, ConfigurationSection section) throws MissionLoadException {
@@ -66,9 +68,9 @@ public class BlocksMissions extends Mission<DataTracker> implements Listener {
         }
 
         //resetAfterFinish = section.getBoolean("reset-after-finish", false);
-        onlyNatural = section.getBoolean("only-natural-blocks", false);
-        blocksPlacement = section.getBoolean("blocks-placement", false);
-        replaceBlocks = section.getBoolean("blocks-replace", false);
+        this.onlyNatural = section.getBoolean("only-natural-blocks", false);
+        this.progressAction = section.getBoolean("blocks-placement", false) ?
+                ProgressAction.PLACE : ProgressAction.BREAK;
 
         registerListener(this);
         Bukkit.getScheduler().runTaskLater(plugin, () -> {
@@ -227,27 +229,55 @@ public class BlocksMissions extends Mission<DataTracker> implements Listener {
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
-    public void onBlockBreak(BlockBreakEvent e) {
+    public void onBlockPlace(BlockPlaceEvent e) {
         SuperiorPlayer superiorPlayer = this.plugin.getPlayers().getSuperiorPlayer(e.getPlayer());
 
-        DataTracker blocksCounter = getOrCreate(superiorPlayer, s -> new DataTracker());
-
-        if (blocksCounter == null)
+        if (superiorPlayer.hasCompletedMission(this))
             return;
 
         BlockInfo blockInfo = new BlockInfo(e.getBlock());
-
-        if (blocksPlacement) {
-            if (!replaceBlocks && isMissionBlock(blockInfo)) {
-                if (BlocksTracker.INSTANCE.untrackBlock(BlocksTracker.TrackingType.PLACED_BLOCKS, e.getBlock()))
-                    blocksCounter.track(blockInfo.getBlockKey(), getBlockAmount(e.getPlayer(), e.getBlock()) * -1);
-            }
+        if (!isMissionBlock(blockInfo))
             return;
+
+        if (this.progressAction == ProgressAction.PLACE) {
+            // We want to handle block place only if players gain progress by placing blocks.
+            handleBlockAction(e.getPlayer(), e.getBlock().getLocation(), blockInfo, superiorPlayer, false);
         }
 
-        handleBlockBreak(e.getBlock(), superiorPlayer, blockInfo);
+        if (this.onlyNatural) {
+            // We want to track block broken & placed only if this mission only progresses for natural blocks
+            // We do that in a delayed tick so all other missions will check for their progress as well.
+            Bukkit.getScheduler().runTaskLater(this.plugin, () -> {
+                BlocksTracker.INSTANCE.untrackBlock(BlocksTracker.TrackingType.BROKEN_BLOCKS, e.getBlock());
+                BlocksTracker.INSTANCE.trackBlock(BlocksTracker.TrackingType.PLACED_BLOCKS, e.getBlock());
+            }, 1L);
+        }
+    }
 
-        BlocksTracker.INSTANCE.untrackBlock(BlocksTracker.TrackingType.PLACED_BLOCKS, e.getBlock());
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onBlockBreak(BlockBreakEvent e) {
+        SuperiorPlayer superiorPlayer = this.plugin.getPlayers().getSuperiorPlayer(e.getPlayer());
+
+        if (superiorPlayer.hasCompletedMission(this))
+            return;
+
+        BlockInfo blockInfo = new BlockInfo(e.getBlock());
+        if (!isMissionBlock(blockInfo))
+            return;
+
+        if (this.progressAction == ProgressAction.BREAK) {
+            // We want to handle block break only if players gain progress by breaking blocks.
+            handleBlockAction(e.getPlayer(), e.getBlock().getLocation(), blockInfo, superiorPlayer, true);
+        }
+
+        if (this.onlyNatural) {
+            // We want to track block broken & placed only if this mission only progresses for natural blocks
+            // We do that in a delayed tick so all other missions will check for their progress as well.
+            Bukkit.getScheduler().runTaskLater(this.plugin, () -> {
+                BlocksTracker.INSTANCE.untrackBlock(BlocksTracker.TrackingType.PLACED_BLOCKS, e.getBlock());
+                BlocksTracker.INSTANCE.trackBlock(BlocksTracker.TrackingType.BROKEN_BLOCKS, e.getBlock());
+            }, 1L);
+        }
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
@@ -262,48 +292,25 @@ public class BlocksMissions extends Mission<DataTracker> implements Listener {
             handleBlockPistonMove(new LinkedList<>(e.getBlocks()), e.getDirection());
     }
 
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
-    public void onBlockPlace(BlockPlaceEvent e) {
-        if (!onlyNatural && !blocksPlacement)
-            return;
-
-        BlocksTracker.INSTANCE.untrackBlock(BlocksTracker.TrackingType.BROKEN_BLOCKS, e.getBlock());
-
-        BlockInfo blockInfo = new BlockInfo(e.getBlock());
-
-        if (this.isBarrelCheck.test(e.getBlock()) || !isMissionBlock(blockInfo))
-            return;
-
-        if (!blocksPlacement) {
-            if (!replaceBlocks)
-                BlocksTracker.INSTANCE.trackBlock(BlocksTracker.TrackingType.PLACED_BLOCKS, e.getBlock());
-            return;
-        }
-
-        SuperiorPlayer superiorPlayer = this.plugin.getPlayers().getSuperiorPlayer(e.getPlayer());
-
-        handleBlockTrack(BlocksTracker.TrackingType.PLACED_BLOCKS, superiorPlayer, e.getBlock(), blockInfo,
-                getBlockAmount(e.getPlayer(), e.getBlock()));
-    }
-
     private class WildStackerListener implements Listener {
 
         @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
         public void onBarrelUnstack(BarrelUnstackEvent e) {
-            if (onlyNatural || !(e.getUnstackSource() instanceof Player))
+            if (onlyNatural || progressAction != ProgressAction.BREAK || !(e.getUnstackSource() instanceof Player))
                 return;
 
-            Block block = e.getBarrel().getBlock();
-            ItemStack barrelItem = e.getBarrel().getBarrelItem(1);
-            Material blockType = barrelItem.getType();
+            Player player = (Player) e.getUnstackSource();
 
-            BlockInfo blockInfo = new BlockInfo(blockType, barrelItem.getDurability());
+            SuperiorPlayer superiorPlayer = plugin.getPlayers().getSuperiorPlayer(player);
 
+            if (superiorPlayer.hasCompletedMission(BlocksMissions.this))
+                return;
+
+            BlockInfo blockInfo = new BlockInfo(e.getBarrel().getType(), e.getBarrel().getData());
             if (!isMissionBlock(blockInfo))
                 return;
 
-            SuperiorPlayer superiorPlayer = plugin.getPlayers().getSuperiorPlayer((Player) e.getUnstackSource());
-            handleBlockTrack(BlocksTracker.TrackingType.BROKEN_BLOCKS, superiorPlayer, block, blockInfo, e.getAmount());
+            handleBlockAction(player, e.getBarrel().getLocation(), blockInfo, superiorPlayer, false);
         }
 
     }
@@ -312,31 +319,34 @@ public class BlocksMissions extends Mission<DataTracker> implements Listener {
 
         @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
         public void onCuboidUse(CuboidWandUseEvent e) {
+            if (progressAction != ProgressAction.BREAK)
+                return;
+
+            SuperiorPlayer superiorPlayer = plugin.getPlayers().getSuperiorPlayer(e.getPlayer());
+
+            if (superiorPlayer.hasCompletedMission(BlocksMissions.this))
+                return;
+
             for (Location location : e.getBlocks()) {
                 Block block = location.getBlock();
-                handleBlockBreak(block, e.getPlayer());
-                BlocksTracker.INSTANCE.untrackBlock(BlocksTracker.TrackingType.PLACED_BLOCKS, block);
+
+                BlockInfo blockInfo = new BlockInfo(block);
+                if (!isMissionBlock(blockInfo))
+                    return;
+
+                handleBlockAction(e.getPlayer(), location, blockInfo, superiorPlayer, true);
+
+                if (onlyNatural) {
+                    // We want to track block broken & placed only if this mission only progresses for natural blocks
+                    // We do that in a delayed tick so all other missions will check for their progress as well.
+                    Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                        BlocksTracker.INSTANCE.untrackBlock(BlocksTracker.TrackingType.PLACED_BLOCKS, block);
+                        BlocksTracker.INSTANCE.trackBlock(BlocksTracker.TrackingType.BROKEN_BLOCKS, block);
+                    }, 1L);
+                }
             }
         }
 
-    }
-
-    private void handleBlockBreak(Block block, Player player) {
-        handleBlockBreak(block, this.plugin.getPlayers().getSuperiorPlayer(player), null);
-    }
-
-    private void handleBlockBreak(Block block, SuperiorPlayer superiorPlayer, @Nullable BlockInfo blockInfo) {
-        if (blockInfo == null)
-            blockInfo = new BlockInfo(block);
-
-        if (this.isBarrelCheck.test(block) || !isMissionBlock(blockInfo))
-            return;
-
-        if (onlyNatural && BlocksTracker.INSTANCE.isTracked(BlocksTracker.TrackingType.PLACED_BLOCKS, block))
-            return;
-
-        handleBlockTrack(BlocksTracker.TrackingType.BROKEN_BLOCKS, superiorPlayer, block, blockInfo,
-                getBlockAmount(superiorPlayer.asPlayer(), block));
     }
 
     private void handleBlockPistonMove(LinkedList<Block> blockList, BlockFace direction) {
@@ -360,14 +370,39 @@ public class BlocksMissions extends Mission<DataTracker> implements Listener {
         addedBlocks.forEach(block -> BlocksTracker.INSTANCE.trackBlock(BlocksTracker.TrackingType.PLACED_BLOCKS, block));
     }
 
-    private void handleBlockTrack(BlocksTracker.TrackingType trackingType, SuperiorPlayer superiorPlayer, Block block,
-                                  BlockInfo blockInfo, int amount) {
+    /**
+     * Handle placing or breaking of a block and add count to mission progress.
+     *
+     * @param player         The player.
+     * @param blockLocation  The location of the block..
+     * @param blockInfo      The {@link BlockInfo} wrapper of the block in @param blockLocation.
+     * @param superiorPlayer The {@link SuperiorPlayer} wrapper of @param player.
+     */
+    private void handleBlockAction(Player player, Location blockLocation, BlockInfo blockInfo,
+                                   @Nullable SuperiorPlayer superiorPlayer, boolean checkForBarrels) {
+        int blockAmount = getBlockAmount(player, blockLocation);
+
+        if (superiorPlayer == null)
+            superiorPlayer = plugin.getPlayers().getSuperiorPlayer(player);
+
+        if (checkForBarrels && this.isBarrelCheck.test(blockLocation))
+            return;
+
+        // In case we progress for breaking blocks, we want to ensure the block is not tracked in case
+        // the mission only progresses for natural blocks.
+        if (this.onlyNatural && this.progressAction == ProgressAction.BREAK &&
+                BlocksTracker.INSTANCE.isTracked(BlocksTracker.TrackingType.PLACED_BLOCKS, blockLocation)) {
+            return;
+        }
+
+        handleBlockTrack(superiorPlayer, blockInfo, blockAmount);
+    }
+
+    private void handleBlockTrack(SuperiorPlayer superiorPlayer, BlockInfo blockInfo, int amount) {
         if (!this.plugin.getMissions().canCompleteNoProgress(superiorPlayer, this))
             return;
 
         DataTracker blocksCounter = getOrCreate(superiorPlayer, s -> new DataTracker());
-
-        BlocksTracker.INSTANCE.trackBlock(trackingType, block);
 
         blocksCounter.track(blockInfo.getBlockKey(), amount);
 
@@ -377,8 +412,8 @@ public class BlocksMissions extends Mission<DataTracker> implements Listener {
         }), 2L);
     }
 
-    private int getBlockAmount(Player player, Block block) {
-        int blockAmount = this.plugin.getStackedBlocks().getStackedBlockAmount(block);
+    private int getBlockAmount(Player player, Location blockLocation) {
+        int blockAmount = this.plugin.getStackedBlocks().getStackedBlockAmount(blockLocation);
 
         // When sneaking, you'll break 64 from the stack. Otherwise, 1.
         int amount = !player.isSneaking() ? 1 : 64;
@@ -432,6 +467,13 @@ public class BlocksMissions extends Mission<DataTracker> implements Listener {
             return requiredBlocks.entrySet().stream().anyMatch(entry -> entry.getKey().contains(combinedKey)) ?
                     combinedKey : blockType.name();
         }
+
+    }
+
+    private enum ProgressAction {
+
+        BREAK,
+        PLACE
 
     }
 
