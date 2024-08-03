@@ -20,7 +20,6 @@ import org.bukkit.block.BlockState;
 import org.bukkit.block.data.Ageable;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.configuration.ConfigurationSection;
-import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.HandlerList;
@@ -234,12 +233,7 @@ public final class FarmingMissions extends Mission<DataTracker> implements Liste
         if (!isMissionPlant(plantTypeName))
             return;
 
-        UUID placerUUID = getPlacerUUID(e.getPlayer());
-
-        if (placerUUID == null)
-            return;
-
-        PlantsTracker.INSTANCE.track(e.getBlock(), placerUUID);
+        PlantsTracker.INSTANCE.track(e.getBlock(), e.getPlayer().getUniqueId());
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
@@ -315,32 +309,32 @@ public final class FarmingMissions extends Mission<DataTracker> implements Liste
         if (placerUUID == null)
             return;
 
-        SuperiorPlayer superiorPlayer;
+        SuperiorPlayer playerTracked;
 
+        SuperiorPlayer superiorPlayer = this.plugin.getPlayers().getSuperiorPlayer(placerUUID);
         if (getIslandMission()) {
-            Island island = this.plugin.getGrid().getIslandByUUID(placerUUID);
-
+            // In case this is an island mission, we want to get the uuid of the owner.
+            Island island = superiorPlayer.getIsland();
             if (island == null)
                 return;
-
-            superiorPlayer = island.getOwner();
+            playerTracked = island.getOwner();
         } else {
-            superiorPlayer = this.plugin.getPlayers().getSuperiorPlayer(placerUUID);
+            playerTracked = superiorPlayer;
         }
 
-        if (!this.plugin.getMissions().canCompleteNoProgress(superiorPlayer, this))
+        if (!this.plugin.getMissions().canCompleteNoProgress(playerTracked, this))
             return;
 
-        DataTracker farmingTracker = getOrCreate(superiorPlayer, s -> new DataTracker());
+        DataTracker farmingTracker = getOrCreate(playerTracked, s -> new DataTracker());
 
         if (farmingTracker == null)
             return;
 
         farmingTracker.track(plantTypeName, 1);
 
-        Bukkit.getScheduler().runTaskLaterAsynchronously(plugin, () -> superiorPlayer.runIfOnline(player -> {
-            if (canComplete(superiorPlayer))
-                this.plugin.getMissions().rewardMission(this, superiorPlayer, true);
+        Bukkit.getScheduler().runTaskLaterAsynchronously(plugin, () -> playerTracked.runIfOnline(player -> {
+            if (canComplete(playerTracked))
+                this.plugin.getMissions().rewardMission(this, playerTracked, true);
         }), 2L);
     }
 
@@ -401,21 +395,6 @@ public final class FarmingMissions extends Mission<DataTracker> implements Liste
         }
 
         return Optional.empty();
-    }
-
-    private UUID getPlacerUUID(Player player) {
-        SuperiorPlayer superiorPlayer = this.plugin.getPlayers().getSuperiorPlayer(player);
-
-        if (getIslandMission()) {
-            Island island = superiorPlayer.getIsland();
-
-            if (island == null)
-                return null;
-
-            return island.getUniqueId();
-        } else {
-            return superiorPlayer.getUniqueId();
-        }
     }
 
     private boolean isMissionPlant(@Nullable String blockTypeName) {
