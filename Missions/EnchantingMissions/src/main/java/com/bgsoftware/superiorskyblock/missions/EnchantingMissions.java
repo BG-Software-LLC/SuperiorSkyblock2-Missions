@@ -29,6 +29,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -65,7 +66,7 @@ public final class EnchantingMissions extends Mission<DataTracker> implements Li
                 throw new MissionLoadException("You must have the \"required-enchants." + key + ".enchants\" section in the config.");
 
             for (String enchantment : enchantsSection.getKeys(false)) {
-                Enchantment _enchantment = Enchantment.getByName(enchantment.toUpperCase());
+                Enchantment _enchantment = Enchantment.getByName(enchantment.toUpperCase(Locale.ENGLISH));
 
                 if (_enchantment == null)
                     throw new MissionLoadException("Enchantment " + enchantment + " is not valid.");
@@ -291,7 +292,7 @@ public final class EnchantingMissions extends Mission<DataTracker> implements Li
         Matcher matcher = ENCHANTED_PATTERN.matcher(line);
 
         if (matcher.find()) {
-            String requiredBlock = matcher.group(1).toUpperCase();
+            String requiredBlock = matcher.group(1).toUpperCase(Locale.ENGLISH);
 
             Optional<Map.Entry<Requirements, RequiredEnchantment>> entry = requiredEnchantments.entrySet().stream()
                     .filter(e -> e.getKey().contains(requiredBlock)).findAny();

@@ -2,6 +2,7 @@ package com.bgsoftware.superiorskyblock.missions.common;
 
 import org.bukkit.ChatColor;
 
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.regex.Matcher;
@@ -41,7 +42,7 @@ public class Placeholders {
     public static <E> String parsePlaceholders(String line, PlaceholdersFunctions<E> functions) {
         Matcher matcher = PERCENTAGE_PATTERN.matcher(line);
         if (matcher.find()) {
-            String requirementKey = matcher.group(1).toUpperCase();
+            String requirementKey = matcher.group(1).toUpperCase(Locale.ENGLISH);
             E requirement = functions.getRequirementFromKey(requirementKey);
             Optional<Integer> entry = functions.lookupRequirement(requirement);
 
@@ -51,7 +52,7 @@ public class Placeholders {
         }
 
         if ((matcher = VALUES_PATTERN.matcher(line)).find()) {
-            String requirementKey = matcher.group(1).toUpperCase();
+            String requirementKey = matcher.group(1).toUpperCase(Locale.ENGLISH);
             E requirement = functions.getRequirementFromKey(requirementKey);
             Optional<Integer> entry = functions.lookupRequirement(requirement);
 
