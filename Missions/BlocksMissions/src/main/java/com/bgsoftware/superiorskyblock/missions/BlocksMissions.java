@@ -232,7 +232,7 @@ public class BlocksMissions extends Mission<DataTracker> implements Listener {
     public void onBlockPlace(BlockPlaceEvent e) {
         SuperiorPlayer superiorPlayer = this.plugin.getPlayers().getSuperiorPlayer(e.getPlayer());
 
-        if (superiorPlayer.hasCompletedMission(this))
+        if (!this.plugin.getMissions().canCompleteNoProgress(superiorPlayer, this))
             return;
 
         BlockInfo blockInfo = new BlockInfo(e.getBlock());
@@ -258,7 +258,7 @@ public class BlocksMissions extends Mission<DataTracker> implements Listener {
     public void onBlockBreak(BlockBreakEvent e) {
         SuperiorPlayer superiorPlayer = this.plugin.getPlayers().getSuperiorPlayer(e.getPlayer());
 
-        if (superiorPlayer.hasCompletedMission(this))
+        if (!this.plugin.getMissions().canCompleteNoProgress(superiorPlayer, this))
             return;
 
         BlockInfo blockInfo = new BlockInfo(e.getBlock());
@@ -303,7 +303,7 @@ public class BlocksMissions extends Mission<DataTracker> implements Listener {
 
             SuperiorPlayer superiorPlayer = plugin.getPlayers().getSuperiorPlayer(player);
 
-            if (superiorPlayer.hasCompletedMission(BlocksMissions.this))
+            if (!BlocksMissions.this.plugin.getMissions().canCompleteNoProgress(superiorPlayer, BlocksMissions.this))
                 return;
 
             BlockInfo blockInfo = new BlockInfo(e.getBarrel().getType(), e.getBarrel().getData());
@@ -324,7 +324,7 @@ public class BlocksMissions extends Mission<DataTracker> implements Listener {
 
             SuperiorPlayer superiorPlayer = plugin.getPlayers().getSuperiorPlayer(e.getPlayer());
 
-            if (superiorPlayer.hasCompletedMission(BlocksMissions.this))
+            if (!BlocksMissions.this.plugin.getMissions().canCompleteNoProgress(superiorPlayer, BlocksMissions.this))
                 return;
 
             for (Location location : e.getBlocks()) {
@@ -399,9 +399,6 @@ public class BlocksMissions extends Mission<DataTracker> implements Listener {
     }
 
     private void handleBlockTrack(SuperiorPlayer superiorPlayer, BlockInfo blockInfo, int amount) {
-        if (!this.plugin.getMissions().canCompleteNoProgress(superiorPlayer, this))
-            return;
-
         DataTracker blocksCounter = getOrCreate(superiorPlayer, s -> new DataTracker());
 
         blocksCounter.track(blockInfo.getBlockKey(), amount);
