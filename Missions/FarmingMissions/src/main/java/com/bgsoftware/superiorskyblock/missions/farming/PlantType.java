@@ -1,5 +1,6 @@
 package com.bgsoftware.superiorskyblock.missions.farming;
 
+import com.bgsoftware.superiorskyblock.api.key.Key;
 import org.bukkit.Material;
 
 import java.util.EnumMap;
@@ -18,7 +19,7 @@ public enum PlantType {
     PUMPKIN(-1, Plants.of("PUMPKIN"), Plants.of("PUMPKIN_STEM")),
     SUGAR_CANE(0, Plants.of("SUGAR_CANE", "SUGAR_CANE_BLOCK")),
     SWEET_BERRY_BUSH(3, Plants.of("SWEET_BERRY_BUSH")),
-    WHEAT(7, Plants.of( "WHEAT", "CROPS", "WHEAT_SEEDS")),
+    WHEAT(7, Plants.of("WHEAT", "CROPS", "WHEAT_SEEDS")),
 
     UNKNOWN(-1, Plants.EMPTY);
 
@@ -29,6 +30,7 @@ public enum PlantType {
     private final String[] plantTypes;
     private final String[] saplingTypes;
     private final int maxAge;
+    private final Key cachedKey;
 
     PlantType(int maxAge, Plants plantTypes) {
         this(maxAge, plantTypes, plantTypes);
@@ -38,10 +40,15 @@ public enum PlantType {
         this.maxAge = maxAge;
         this.plantTypes = plantTypes.arr;
         this.saplingTypes = saplingTypes.arr;
+        this.cachedKey = Key.ofMaterialAndData(name());
     }
 
     public int getMaxAge() {
         return maxAge;
+    }
+
+    public Key getCachedKey() {
+        return cachedKey;
     }
 
     public static PlantType getByType(Material material) {

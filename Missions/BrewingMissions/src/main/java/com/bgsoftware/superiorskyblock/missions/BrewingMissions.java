@@ -5,6 +5,7 @@ import com.bgsoftware.superiorskyblock.api.missions.Mission;
 import com.bgsoftware.superiorskyblock.api.missions.MissionLoadException;
 import com.bgsoftware.superiorskyblock.api.wrappers.SuperiorPlayer;
 import com.bgsoftware.superiorskyblock.missions.common.Placeholders;
+import com.bgsoftware.superiorskyblock.missions.common.requirements.CustomRequirements;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
@@ -31,16 +32,13 @@ import org.bukkit.potion.PotionType;
 
 import javax.annotation.Nullable;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
 import java.util.UUID;
 import java.util.function.Predicate;
 
@@ -48,7 +46,7 @@ public final class BrewingMissions extends Mission<BrewingMissions.BrewingTracke
 
     private static final boolean isUsing18 = Bukkit.getServer().getClass().getPackage().getName().contains("1_8");
 
-    private final Map<Set<PotionData>, Integer> requiredPotions = new LinkedHashMap<>();
+    private final Map<CustomRequirements<PotionData>, Integer> requiredPotions = new LinkedHashMap<>();
     private final Map<Location, boolean[]> trackedBrewItems = new HashMap<>();
     private boolean resetAfterFinish;
 
@@ -64,7 +62,7 @@ public final class BrewingMissions extends Mission<BrewingMissions.BrewingTracke
             throw new MissionLoadException("You must have the \"required-potions\" section in the config.");
 
         for (String key : requiredPotionsSection.getKeys(false)) {
-            Set<PotionData> requiredPotions = new LinkedHashSet<>();
+            CustomRequirements<PotionData> requiredPotions = new CustomRequirements<>();
 
             ConfigurationSection potionsSection = section.getConfigurationSection("required-potions." + key + ".potions");
 
@@ -122,7 +120,7 @@ public final class BrewingMissions extends Mission<BrewingMissions.BrewingTracke
         int requiredPotions = 0;
         int kills = 0;
 
-        for (Map.Entry<Set<PotionData>, Integer> requiredPotion : this.requiredPotions.entrySet()) {
+        for (Map.Entry<CustomRequirements<PotionData>, Integer> requiredPotion : this.requiredPotions.entrySet()) {
             requiredPotions += requiredPotion.getValue();
             kills += Math.min(brewingTracker.getBrews(requiredPotion.getKey()), requiredPotion.getValue());
         }
@@ -139,7 +137,7 @@ public final class BrewingMissions extends Mission<BrewingMissions.BrewingTracke
 
         int kills = 0;
 
-        for (Map.Entry<Set<PotionData>, Integer> requiredEntity : this.requiredPotions.entrySet())
+        for (Map.Entry<CustomRequirements<PotionData>, Integer> requiredEntity : this.requiredPotions.entrySet())
             kills += Math.min(brewingTracker.getBrews(requiredEntity.getKey()), requiredEntity.getValue());
 
         return kills;
@@ -193,23 +191,27 @@ public final class BrewingMissions extends Mission<BrewingMissions.BrewingTracke
         if (itemMeta == null)
             return;
 
-        Placeholders.PlaceholdersFunctions<PotionData> placeholdersFunctions = new Placeholders.PlaceholdersFunctions<PotionData>() {
+        Placeholders.PlaceholdersFunctions<CustomRequirements<PotionData>> placeholdersFunctions = new Placeholders.PlaceholdersFunctions<CustomRequirements<PotionData>>() {
             @Override
-            public PotionData getRequirementFromKey(String key) {
-                return PotionData.fromString(key);
+            public CustomRequirements<PotionData> getRequirementFromKey(String key) {
+                PotionData potionData = PotionData.fromString(key);
+
+                for (CustomRequirements<PotionData> requirements : requiredPotions.keySet()) {
+                    if (requirements.contains(potionData))
+                        return requirements;
+                }
+
+                return null;
             }
 
             @Override
-            public Optional<Integer> lookupRequirement(PotionData requirement) {
-                return requiredPotions.entrySet().stream()
-                        .filter(e -> e.getKey().contains(requirement))
-                        .findFirst()
-                        .map(Map.Entry::getValue);
+            public Optional<Integer> lookupRequirement(CustomRequirements<PotionData> requirement) {
+                return Optional.ofNullable(requiredPotions.get(requirement));
             }
 
             @Override
-            public int getCountForRequirement(PotionData requirement) {
-                return brewingTracker.getBrews(Collections.singletonList(requirement));
+            public int getCountForRequirement(CustomRequirements<PotionData> requirement) {
+                return brewingTracker.getBrews(requirement);
             }
         };
 

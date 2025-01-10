@@ -1,26 +1,24 @@
-package com.bgsoftware.superiorskyblock.missions.common;
+package com.bgsoftware.superiorskyblock.missions.common.requirements;
 
 import com.google.common.collect.ForwardingSet;
 
-import java.util.Collection;
-import java.util.LinkedHashSet;
 import java.util.Set;
 
-public class Requirements extends ForwardingSet<String> {
+public abstract class RequirementsAbstract<E> extends ForwardingSet<E> implements IRequirements<E> {
 
-    private final Set<String> handle = new LinkedHashSet<>();
+    private final Set<E> handle;
     private boolean containsAll = false;
 
-    public Requirements(Collection<String> elements) {
-        addAll(elements);
+    public RequirementsAbstract(Set<E> handle) {
+        this.handle = handle;
     }
 
     @Override
-    public boolean add(String element) {
+    public boolean add(E element) {
         if (containsAll)
             return true;
 
-        if (element.equalsIgnoreCase("all")) {
+        if (isAllElement(element)) {
             this.containsAll = true;
             return true;
         }
@@ -38,8 +36,10 @@ public class Requirements extends ForwardingSet<String> {
     }
 
     @Override
-    protected Set<String> delegate() {
+    protected Set<E> delegate() {
         return this.handle;
     }
+
+    protected abstract boolean isAllElement(E element);
 
 }

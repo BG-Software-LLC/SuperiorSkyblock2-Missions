@@ -4,9 +4,9 @@ import com.bgsoftware.superiorskyblock.api.SuperiorSkyblock;
 import com.bgsoftware.superiorskyblock.api.missions.Mission;
 import com.bgsoftware.superiorskyblock.api.missions.MissionLoadException;
 import com.bgsoftware.superiorskyblock.api.wrappers.SuperiorPlayer;
-import com.bgsoftware.superiorskyblock.missions.common.DataTracker;
 import com.bgsoftware.superiorskyblock.missions.common.Placeholders;
-import com.bgsoftware.superiorskyblock.missions.common.Requirements;
+import com.bgsoftware.superiorskyblock.missions.common.requirements.Requirements;
+import com.bgsoftware.superiorskyblock.missions.common.tracker.RawDataTracker;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.configuration.ConfigurationSection;
@@ -37,7 +37,7 @@ import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public final class EnchantingMissions extends Mission<DataTracker> implements Listener {
+public final class EnchantingMissions extends Mission<RawDataTracker> implements Listener {
 
     private static final Pattern ENCHANTED_PATTERN = Pattern.compile("\\{enchanted_(.+?)}");
 
@@ -79,7 +79,7 @@ public final class EnchantingMissions extends Mission<DataTracker> implements Li
                         section.getInt("required-enchants." + key + ".amount", 1)));
             }
 
-            setClearMethod(DataTracker::clear);
+            setClearMethod(RawDataTracker::clear);
         }
 
         registerListener(this);
@@ -101,7 +101,7 @@ public final class EnchantingMissions extends Mission<DataTracker> implements Li
 
     @Override
     public double getProgress(SuperiorPlayer superiorPlayer) {
-        DataTracker enchantsTracker = get(superiorPlayer);
+        RawDataTracker enchantsTracker = get(superiorPlayer);
 
         if (enchantsTracker == null)
             return 0.0;
@@ -119,7 +119,7 @@ public final class EnchantingMissions extends Mission<DataTracker> implements Li
 
     @Override
     public int getProgressValue(SuperiorPlayer superiorPlayer) {
-        DataTracker enchantsTracker = get(superiorPlayer);
+        RawDataTracker enchantsTracker = get(superiorPlayer);
 
         if (enchantsTracker == null)
             return 0;
@@ -145,7 +145,7 @@ public final class EnchantingMissions extends Mission<DataTracker> implements Li
 
     @Override
     public void formatItem(SuperiorPlayer superiorPlayer, ItemStack itemStack) {
-        DataTracker enchantsTracker = getOrCreate(superiorPlayer, s -> new DataTracker());
+        RawDataTracker enchantsTracker = getOrCreate(superiorPlayer, s -> new RawDataTracker());
 
         if (enchantsTracker == null)
             return;
@@ -155,24 +155,28 @@ public final class EnchantingMissions extends Mission<DataTracker> implements Li
         if (itemMeta == null)
             return;
 
-        Placeholders.PlaceholdersFunctions<RequiredEnchantment> placeholdersFunctions = new Placeholders.PlaceholdersFunctions<RequiredEnchantment>() {
+        Placeholders.PlaceholdersFunctions<Requirements> placeholdersFunctions = new Placeholders.PlaceholdersFunctions<Requirements>() {
             @Override
-            public RequiredEnchantment getRequirementFromKey(String key) {
-                return requiredEnchantments.entrySet().stream()
-                        .filter(e -> e.getKey().contains(key)).
-                        findFirst()
-                        .map(Map.Entry::getValue)
-                        .orElse(null);
+            public Requirements getRequirementFromKey(String key) {
+                for (Requirements requirements : requiredEnchantments.keySet()) {
+                    if (requirements.contains(key))
+                        return requirements;
+                }
+
+                return null;
             }
 
             @Override
-            public Optional<Integer> lookupRequirement(RequiredEnchantment requirement) {
-                return requirement == null ? Optional.empty() : Optional.of(requirement.amount);
+            public Optional<Integer> lookupRequirement(Requirements requirement) {
+                return Optional.ofNullable(requiredEnchantments.get(requirement))
+                        .map(requiredEnchantment -> requiredEnchantment.amount);
             }
 
             @Override
-            public int getCountForRequirement(RequiredEnchantment requirement) {
-                return enchantsTracker.getCount(requirement.key);
+            public int getCountForRequirement(Requirements requirement) {
+                return Optional.ofNullable(requiredEnchantments.get(requirement))
+                        .map(requiredEnchantment -> enchantsTracker.getCount(requiredEnchantment.key))
+                        .orElse(0);
             }
         };
 
@@ -217,7 +221,7 @@ public final class EnchantingMissions extends Mission<DataTracker> implements Li
 
     @Override
     public void saveProgress(ConfigurationSection section) {
-        for (Map.Entry<SuperiorPlayer, DataTracker> entry : entrySet()) {
+        for (Map.Entry<SuperiorPlayer, RawDataTracker> entry : entrySet()) {
             String uuid = entry.getKey().getUniqueId().toString();
             List<String> data = new ArrayList<>();
             entry.getValue().getCounts().forEach((enchant, amount) -> data.add(enchant + ";" + amount.get()));
@@ -228,7 +232,7 @@ public final class EnchantingMissions extends Mission<DataTracker> implements Li
     @Override
     public void loadProgress(ConfigurationSection section) {
         for (String uuid : section.getKeys(false)) {
-            DataTracker enchantsTracker = new DataTracker();
+            RawDataTracker enchantsTracker = new RawDataTracker();
             UUID playerUUID = UUID.fromString(uuid);
             SuperiorPlayer superiorPlayer = this.plugin.getPlayers().getSuperiorPlayer(playerUUID);
 
@@ -274,7 +278,7 @@ public final class EnchantingMissions extends Mission<DataTracker> implements Li
         if (!this.plugin.getMissions().canCompleteNoProgress(superiorPlayer, this))
             return;
 
-        DataTracker enchantsTracker = getOrCreate(superiorPlayer, s -> new DataTracker());
+        RawDataTracker enchantsTracker = getOrCreate(superiorPlayer, s -> new RawDataTracker());
 
         if (enchantsTracker == null)
             return;
@@ -287,8 +291,8 @@ public final class EnchantingMissions extends Mission<DataTracker> implements Li
         }), 2L);
     }
 
-    private String parsePlaceholders(Placeholders.PlaceholdersFunctions<RequiredEnchantment> placeholdersFunctions,
-                                     DataTracker enchantsTracker, String line) {
+    private String parsePlaceholders(Placeholders.PlaceholdersFunctions<Requirements> placeholdersFunctions,
+                                     RawDataTracker enchantsTracker, String line) {
         Matcher matcher = ENCHANTED_PATTERN.matcher(line);
 
         if (matcher.find()) {

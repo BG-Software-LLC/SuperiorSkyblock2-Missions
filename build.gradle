@@ -31,7 +31,7 @@ subprojects {
         compileOnly "org.spigotmc:v1_16_R3:latest"
         compileOnly "org.spigotmc:v1_8_R3-Taco:latest"
         compileOnly "com.bgsoftware.common.reflection:ReflectionUtils:b7"
-        compileOnly "com.bgsoftware:SuperiorSkyblockAPI:2023.2"
+        compileOnly "com.bgsoftware:SuperiorSkyblockAPI:2024.3"
     }
 
     shadowJar {

@@ -5,6 +5,7 @@ import com.bgsoftware.superiorskyblock.api.missions.Mission;
 import com.bgsoftware.superiorskyblock.api.missions.MissionLoadException;
 import com.bgsoftware.superiorskyblock.api.wrappers.SuperiorPlayer;
 import com.bgsoftware.superiorskyblock.missions.common.Placeholders;
+import com.bgsoftware.superiorskyblock.missions.common.requirements.CustomRequirements;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.configuration.ConfigurationSection;
@@ -20,10 +21,8 @@ import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -33,7 +32,7 @@ import java.util.UUID;
 
 public final class FishingMissions extends Mission<FishingMissions.FishingTracker> implements Listener {
 
-    private final Map<Set<ItemStack>, Integer> itemsToCatch = new LinkedHashMap<>();
+    private final Map<CustomRequirements<ItemStack>, Integer> itemsToCatch = new LinkedHashMap<>();
 
     private SuperiorSkyblock plugin;
 
@@ -49,7 +48,7 @@ public final class FishingMissions extends Mission<FishingMissions.FishingTracke
             List<String> itemTypes = section.getStringList("required-caughts." + key + ".types");
             int amount = section.getInt("required-caughts." + key + ".amount", 1);
 
-            Set<ItemStack> itemsToCatch = new LinkedHashSet<>();
+            CustomRequirements<ItemStack> itemsToCatch = new CustomRequirements<>();
 
             for (String itemType : itemTypes) {
                 byte data = 0;
@@ -97,7 +96,7 @@ public final class FishingMissions extends Mission<FishingMissions.FishingTracke
         int requiredItems = 0;
         int interactions = 0;
 
-        for (Map.Entry<Set<ItemStack>, Integer> entry : this.itemsToCatch.entrySet()) {
+        for (Map.Entry<CustomRequirements<ItemStack>, Integer> entry : this.itemsToCatch.entrySet()) {
             requiredItems += entry.getValue();
             interactions += Math.min(fishingTracker.getCaughts(entry.getKey()), entry.getValue());
         }
@@ -114,7 +113,7 @@ public final class FishingMissions extends Mission<FishingMissions.FishingTracke
 
         int interactions = 0;
 
-        for (Map.Entry<Set<ItemStack>, Integer> entry : this.itemsToCatch.entrySet())
+        for (Map.Entry<CustomRequirements<ItemStack>, Integer> entry : this.itemsToCatch.entrySet())
             interactions += Math.min(fishingTracker.getCaughts(entry.getKey()), entry.getValue());
 
         return interactions;
@@ -175,23 +174,27 @@ public final class FishingMissions extends Mission<FishingMissions.FishingTracke
         if (itemMeta == null)
             return;
 
-        Placeholders.PlaceholdersFunctions<ItemStack> placeholdersFunctions = new Placeholders.PlaceholdersFunctions<ItemStack>() {
+        Placeholders.PlaceholdersFunctions<CustomRequirements<ItemStack>> placeholdersFunctions = new Placeholders.PlaceholdersFunctions<CustomRequirements<ItemStack>>() {
             @Override
-            public ItemStack getRequirementFromKey(String key) {
-                return new ItemStack(Material.valueOf(key));
+            public CustomRequirements<ItemStack> getRequirementFromKey(String key) {
+                ItemStack itemStack = new ItemStack(Material.valueOf(key));
+
+                for (CustomRequirements<ItemStack> requirements : itemsToCatch.keySet()) {
+                    if (requirements.contains(itemStack))
+                        return requirements;
+                }
+
+                return null;
             }
 
             @Override
-            public Optional<Integer> lookupRequirement(ItemStack requirement) {
-                return itemsToCatch.entrySet().stream()
-                        .filter(e -> e.getKey().contains(requirement))
-                        .findFirst()
-                        .map(Map.Entry::getValue);
+            public Optional<Integer> lookupRequirement(CustomRequirements<ItemStack> requirement) {
+                return Optional.ofNullable(itemsToCatch.get(requirement));
             }
 
             @Override
-            public int getCountForRequirement(ItemStack requirement) {
-                return fishingTracker.getCaughts(Collections.singletonList(requirement));
+            public int getCountForRequirement(CustomRequirements<ItemStack> requirement) {
+                return fishingTracker.getCaughts(requirement);
             }
         };
 

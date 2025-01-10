@@ -2,12 +2,14 @@ package com.bgsoftware.superiorskyblock.missions;
 
 import com.bgsoftware.superiorskyblock.api.SuperiorSkyblock;
 import com.bgsoftware.superiorskyblock.api.island.Island;
+import com.bgsoftware.superiorskyblock.api.key.Key;
+import com.bgsoftware.superiorskyblock.api.key.KeySet;
 import com.bgsoftware.superiorskyblock.api.missions.Mission;
 import com.bgsoftware.superiorskyblock.api.missions.MissionLoadException;
 import com.bgsoftware.superiorskyblock.api.wrappers.SuperiorPlayer;
-import com.bgsoftware.superiorskyblock.missions.common.DataTracker;
 import com.bgsoftware.superiorskyblock.missions.common.Placeholders;
-import com.bgsoftware.superiorskyblock.missions.common.Requirements;
+import com.bgsoftware.superiorskyblock.missions.common.requirements.KeyRequirements;
+import com.bgsoftware.superiorskyblock.missions.common.tracker.KeyDataTracker;
 import com.bgsoftware.superiorskyblock.missions.farming.PlantPosition;
 import com.bgsoftware.superiorskyblock.missions.farming.PlantType;
 import com.bgsoftware.superiorskyblock.missions.farming.PlantsTracker;
@@ -40,12 +42,13 @@ import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 
-public final class FarmingMissions extends Mission<DataTracker> implements Listener {
+public final class FarmingMissions extends Mission<KeyDataTracker> implements Listener {
 
     private static final BlockFace[] STEM_NEARBY_BLOCKS = new BlockFace[]{
             BlockFace.EAST, BlockFace.WEST, BlockFace.NORTH, BlockFace.SOUTH
@@ -54,7 +57,7 @@ public final class FarmingMissions extends Mission<DataTracker> implements Liste
             BlockFace.EAST, BlockFace.WEST, BlockFace.NORTH, BlockFace.SOUTH, BlockFace.DOWN
     };
 
-    private final Map<Requirements, Integer> requiredPlants = new LinkedHashMap<>();
+    private final Map<KeyRequirements, Integer> requiredPlants = new LinkedHashMap<>();
     private boolean resetAfterFinish;
 
     private SuperiorSkyblock plugin;
@@ -69,9 +72,11 @@ public final class FarmingMissions extends Mission<DataTracker> implements Liste
             throw new MissionLoadException("You must have the \"required-plants\" section in the config.");
 
         for (String key : requiredPlantsSection.getKeys(false)) {
-            List<String> requiredPlants = section.getStringList("required-plants." + key + ".types");
+            KeySet requiredPlants = KeySet.createKeySet();
+            section.getStringList("required-plants." + key + ".types").forEach(requiredPlant ->
+                    requiredPlants.add(Key.ofMaterialAndData(requiredPlant.toUpperCase(Locale.ENGLISH))));
             int requiredAmount = section.getInt("required-plants." + key + ".amount");
-            this.requiredPlants.put(new Requirements(requiredPlants), requiredAmount);
+            this.requiredPlants.put(new KeyRequirements(requiredPlants), requiredAmount);
         }
 
         resetAfterFinish = section.getBoolean("reset-after-finish", false);
@@ -85,7 +90,7 @@ public final class FarmingMissions extends Mission<DataTracker> implements Liste
 
     @Override
     public double getProgress(SuperiorPlayer superiorPlayer) {
-        DataTracker farmingTracker = get(superiorPlayer);
+        KeyDataTracker farmingTracker = get(superiorPlayer);
 
         if (farmingTracker == null)
             return 0.0;
@@ -93,7 +98,7 @@ public final class FarmingMissions extends Mission<DataTracker> implements Liste
         int requiredPlants = 0;
         int grewPlants = 0;
 
-        for (Map.Entry<Requirements, Integer> requiredPlant : this.requiredPlants.entrySet()) {
+        for (Map.Entry<KeyRequirements, Integer> requiredPlant : this.requiredPlants.entrySet()) {
             requiredPlants += requiredPlant.getValue();
             grewPlants += Math.min(farmingTracker.getCounts(requiredPlant.getKey()), requiredPlant.getValue());
         }
@@ -103,14 +108,14 @@ public final class FarmingMissions extends Mission<DataTracker> implements Liste
 
     @Override
     public int getProgressValue(SuperiorPlayer superiorPlayer) {
-        DataTracker farmingTracker = get(superiorPlayer);
+        KeyDataTracker farmingTracker = get(superiorPlayer);
 
         if (farmingTracker == null)
             return 0;
 
         int kills = 0;
 
-        for (Map.Entry<Requirements, Integer> requiredPlant : this.requiredPlants.entrySet())
+        for (Map.Entry<KeyRequirements, Integer> requiredPlant : this.requiredPlants.entrySet())
             kills += Math.min(farmingTracker.getCounts(requiredPlant.getKey()), requiredPlant.getValue());
 
         return kills;
@@ -129,7 +134,7 @@ public final class FarmingMissions extends Mission<DataTracker> implements Liste
 
     @Override
     public void saveProgress(ConfigurationSection section) {
-        for (Map.Entry<SuperiorPlayer, DataTracker> entry : entrySet()) {
+        for (Map.Entry<SuperiorPlayer, KeyDataTracker> entry : entrySet()) {
             String uuid = entry.getKey().getUniqueId().toString();
             entry.getValue().getCounts().forEach((plant, count) ->
                     section.set("grown-plants." + uuid + "." + plant, count.get()));
@@ -143,14 +148,14 @@ public final class FarmingMissions extends Mission<DataTracker> implements Liste
         ConfigurationSection grownPlants = section.getConfigurationSection("grown-plants");
         if (grownPlants != null) {
             for (String uuid : grownPlants.getKeys(false)) {
-                DataTracker farmingTracker = new DataTracker();
+                KeyDataTracker farmingTracker = new KeyDataTracker();
                 UUID playerUUID = UUID.fromString(uuid);
                 SuperiorPlayer superiorPlayer = this.plugin.getPlayers().getSuperiorPlayer(playerUUID);
 
                 insertData(superiorPlayer, farmingTracker);
 
                 for (String key : grownPlants.getConfigurationSection(uuid).getKeys(false)) {
-                    farmingTracker.load(key, grownPlants.getInt(uuid + "." + key));
+                    farmingTracker.load(Key.ofMaterialAndData(key), grownPlants.getInt(uuid + "." + key));
                 }
             }
         }
@@ -201,7 +206,7 @@ public final class FarmingMissions extends Mission<DataTracker> implements Liste
 
     @Override
     public void formatItem(SuperiorPlayer superiorPlayer, ItemStack itemStack) {
-        DataTracker farmingTracker = getOrCreate(superiorPlayer, s -> new DataTracker());
+        KeyDataTracker farmingTracker = getOrCreate(superiorPlayer, s -> new KeyDataTracker());
 
         if (farmingTracker == null)
             return;
@@ -212,12 +217,12 @@ public final class FarmingMissions extends Mission<DataTracker> implements Liste
             return;
 
         if (itemMeta.hasDisplayName())
-            itemMeta.setDisplayName(Placeholders.parsePlaceholders(this.requiredPlants, farmingTracker, itemMeta.getDisplayName()));
+            itemMeta.setDisplayName(Placeholders.parseKeyPlaceholders(this.requiredPlants, farmingTracker, itemMeta.getDisplayName(), true));
 
         if (itemMeta.hasLore()) {
             List<String> lore = new ArrayList<>();
             for (String line : Objects.requireNonNull(itemMeta.getLore()))
-                lore.add(Placeholders.parsePlaceholders(this.requiredPlants, farmingTracker, line));
+                lore.add(Placeholders.parseKeyPlaceholders(this.requiredPlants, farmingTracker, line, true));
             itemMeta.setLore(lore);
         }
 
@@ -226,11 +231,10 @@ public final class FarmingMissions extends Mission<DataTracker> implements Liste
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onBlockPlace(BlockPlaceEvent e) {
-        Material blockType = e.getBlock().getType();
-        PlantType plantType = PlantType.getBySaplingType(blockType);
-        String plantTypeName = plantType == PlantType.UNKNOWN ? blockType.name() : plantType.name();
+        PlantType plantType = PlantType.getBySaplingType(e.getBlock().getType());
+        Key plantKey = plantType == PlantType.UNKNOWN ? Key.of(e.getBlock()) : plantType.getCachedKey();
 
-        if (!isMissionPlant(plantTypeName))
+        if (!isMissionPlant(plantKey))
             return;
 
         PlantsTracker.INSTANCE.track(e.getBlock(), e.getPlayer().getUniqueId());
@@ -276,11 +280,10 @@ public final class FarmingMissions extends Mission<DataTracker> implements Liste
     }
 
     private void handlePlantGrow(Block plantBlock, BlockState newState) {
-        Material blockType = newState.getType();
-        PlantType plantType = PlantType.getByType(blockType);
-        String plantTypeName = plantType == PlantType.UNKNOWN ? blockType.name() : plantType.name();
+        PlantType plantType = PlantType.getByType(newState.getType());
+        Key plantKey = plantType == PlantType.UNKNOWN ? Key.of(newState) : plantType.getCachedKey();
 
-        if (!isMissionPlant(plantTypeName))
+        if (!isMissionPlant(plantKey))
             return;
 
         int maxAge = plantType.getMaxAge();
@@ -325,12 +328,12 @@ public final class FarmingMissions extends Mission<DataTracker> implements Liste
         if (!this.plugin.getMissions().canCompleteNoProgress(playerTracked, this))
             return;
 
-        DataTracker farmingTracker = getOrCreate(playerTracked, s -> new DataTracker());
+        KeyDataTracker farmingTracker = getOrCreate(playerTracked, s -> new KeyDataTracker());
 
         if (farmingTracker == null)
             return;
 
-        farmingTracker.track(plantTypeName, 1);
+        farmingTracker.track(plantKey, 1);
 
         Bukkit.getScheduler().runTaskLaterAsynchronously(plugin, () -> playerTracked.runIfOnline(player -> {
             if (canComplete(playerTracked))
@@ -397,12 +400,12 @@ public final class FarmingMissions extends Mission<DataTracker> implements Liste
         return Optional.empty();
     }
 
-    private boolean isMissionPlant(@Nullable String blockTypeName) {
-        if (blockTypeName == null)
+    private boolean isMissionPlant(@Nullable Key blockKey) {
+        if (blockKey == null)
             return false;
 
-        for (Requirements requirement : requiredPlants.keySet()) {
-            if (requirement.contains(blockTypeName))
+        for (KeyRequirements requirement : requiredPlants.keySet()) {
+            if (requirement.contains(blockKey))
                 return true;
         }
 

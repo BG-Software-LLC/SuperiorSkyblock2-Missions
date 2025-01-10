@@ -5,7 +5,7 @@ import com.bgsoftware.superiorskyblock.api.missions.Mission;
 import com.bgsoftware.superiorskyblock.api.missions.MissionLoadException;
 import com.bgsoftware.superiorskyblock.api.wrappers.SuperiorPlayer;
 import com.bgsoftware.superiorskyblock.missions.common.Placeholders;
-import com.bgsoftware.superiorskyblock.missions.common.Requirements;
+import com.bgsoftware.superiorskyblock.missions.common.requirements.Requirements;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.Statistic;
@@ -28,6 +28,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.OptionalInt;
 
 public final class StatisticsMissions extends Mission<Void> implements Listener {
 
@@ -73,10 +74,12 @@ public final class StatisticsMissions extends Mission<Void> implements Listener 
 
             int statisticAmount = 0;
             for (String statistic : requirement) {
-                int currentStatisticAmount = getStatisticAmount(player, statistic);
+                OptionalInt currentStatisticAmountOptional = getStatisticAmount(player, statistic);
 
-                if (currentStatisticAmount == -1)
+                if (!currentStatisticAmountOptional.isPresent())
                     continue;
+
+                int currentStatisticAmount = currentStatisticAmountOptional.getAsInt();
 
                 //Making sure to not exceed the required item amount
                 if (statisticAmount + currentStatisticAmount > requiredAmount)
@@ -109,7 +112,12 @@ public final class StatisticsMissions extends Mission<Void> implements Listener 
 
             int statisticAmount = 0;
             for (String statistic : requirement) {
-                int currentItemAmount = getStatisticAmount(player, statistic);
+                OptionalInt currentItemAmountOptional = getStatisticAmount(player, statistic);
+
+                if (!currentItemAmountOptional.isPresent())
+                    continue;
+
+                int currentItemAmount = currentItemAmountOptional.getAsInt();
 
                 //Making sure to not exceed the required item amount
                 if (statisticAmount + currentItemAmount > requiredAmount)
@@ -147,23 +155,34 @@ public final class StatisticsMissions extends Mission<Void> implements Listener 
         if (itemMeta == null)
             return;
 
-        Placeholders.PlaceholdersFunctions<String> placeholdersFunctions = new Placeholders.PlaceholdersFunctions<String>() {
+        Placeholders.PlaceholdersFunctions<Requirements> placeholdersFunctions = new Placeholders.PlaceholdersFunctions<Requirements>() {
             @Override
-            public String getRequirementFromKey(String key) {
-                return key;
+            public Requirements getRequirementFromKey(String key) {
+                for (Requirements requirements : requiredStatistics.keySet()) {
+                    if (requirements.contains(key))
+                        return requirements;
+                }
+
+                return null;
             }
 
             @Override
-            public Optional<Integer> lookupRequirement(String requirement) {
-                return requiredStatistics.entrySet().stream()
-                        .filter(e -> e.getKey().contains(requirement))
-                        .findFirst()
-                        .map(Map.Entry::getValue);
+            public Optional<Integer> lookupRequirement(Requirements requirement) {
+                return Optional.ofNullable(requiredStatistics.get(requirement));
             }
 
             @Override
-            public int getCountForRequirement(String requirement) {
-                return getStatisticAmount(player, requirement);
+            public int getCountForRequirement(Requirements requirement) {
+                int statisticAmount = 0;
+
+                for (String statistic : requirement) {
+                    OptionalInt currentItemAmountOptional = getStatisticAmount(player, statistic);
+
+                    if (currentItemAmountOptional.isPresent())
+                        statisticAmount += currentItemAmountOptional.getAsInt();
+                }
+
+                return statisticAmount;
             }
         };
 
@@ -206,23 +225,23 @@ public final class StatisticsMissions extends Mission<Void> implements Listener 
         return false;
     }
 
-    private static int getStatisticAmount(Player player, String statisticsString) {
+    private static OptionalInt getStatisticAmount(Player player, String statisticsString) {
         String[] sections = statisticsString.split(":");
-        int currentStatisticAmount = -1;
+        OptionalInt currentStatisticAmount = OptionalInt.empty();
 
         try {
             Statistic statistic = Statistic.valueOf(sections[0]);
 
             if (sections.length == 1) {
-                currentStatisticAmount = player.getStatistic(statistic);
+                currentStatisticAmount = OptionalInt.of(player.getStatistic(statistic));
             } else if (sections.length == 2) {
                 Material material = getEnumSafe(Material.class, sections[1]);
                 if (material != null) {
-                    currentStatisticAmount = player.getStatistic(statistic, material);
+                    currentStatisticAmount = OptionalInt.of(player.getStatistic(statistic, material));
                 } else {
                     EntityType entityType = getEnumSafe(EntityType.class, sections[1]);
                     if (entityType != null)
-                        currentStatisticAmount = player.getStatistic(statistic, entityType);
+                        currentStatisticAmount = OptionalInt.of(player.getStatistic(statistic, entityType));
                 }
             }
         } catch (Exception ignored) {

@@ -1,10 +1,12 @@
 package com.bgsoftware.superiorskyblock.missions;
 
 import com.bgsoftware.superiorskyblock.api.SuperiorSkyblock;
+import com.bgsoftware.superiorskyblock.api.key.Key;
+import com.bgsoftware.superiorskyblock.api.key.KeySet;
 import com.bgsoftware.superiorskyblock.api.missions.Mission;
 import com.bgsoftware.superiorskyblock.api.missions.MissionLoadException;
 import com.bgsoftware.superiorskyblock.api.wrappers.SuperiorPlayer;
-import com.bgsoftware.superiorskyblock.missions.common.Requirements;
+import com.bgsoftware.superiorskyblock.missions.common.requirements.KeyRequirements;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.configuration.ConfigurationSection;
@@ -28,7 +30,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
-import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -36,7 +38,7 @@ import java.util.Set;
 @SuppressWarnings("unused")
 public final class ItemsMissions extends Mission<ItemsMissions.ItemsTracker> implements Listener {
 
-    private final Map<Requirements, Integer> requiredItems = new LinkedHashMap<>();
+    private final Map<KeyRequirements, Integer> requiredItems = new LinkedHashMap<>();
 
     private SuperiorSkyblock plugin;
 
@@ -50,9 +52,11 @@ public final class ItemsMissions extends Mission<ItemsMissions.ItemsTracker> imp
             throw new MissionLoadException("You must have the \"required-items\" section in the config.");
 
         for (String key : requiredItemsSection.getKeys(false)) {
-            List<String> itemStacks = section.getStringList("required-items." + key + ".types");
+            KeySet itemStacks = KeySet.createKeySet();
+            section.getStringList("required-items." + key + ".types").forEach(itemStackName ->
+                    itemStacks.add(Key.ofMaterialAndData(itemStackName.toUpperCase(Locale.ENGLISH))));
             int requiredAmount = section.getInt("required-items." + key + ".amount");
-            requiredItems.put(new Requirements(itemStacks), requiredAmount);
+            requiredItems.put(new KeyRequirements(itemStacks), requiredAmount);
         }
 
         Bukkit.getPluginManager().registerEvents(this, plugin);
@@ -85,16 +89,16 @@ public final class ItemsMissions extends Mission<ItemsMissions.ItemsTracker> imp
         if (itemsTracker == null)
             return 0.0;
 
-        for (Map.Entry<Requirements, Integer> entry : requiredItems.entrySet()) {
-            Requirements requirement = entry.getKey();
+        for (Map.Entry<KeyRequirements, Integer> entry : requiredItems.entrySet()) {
+            KeyRequirements requirement = entry.getKey();
             int requiredAmount = entry.getValue();
 
             int itemAmount = 0;
-            for (String item : requirement) {
+            for (Key item : requirement) {
                 try {
                     //Get the amount of the item.
-                    Material type = Material.valueOf(item.contains(":") ? item.split(":")[0] : item);
-                    short data = Short.parseShort(item.contains(":") ? item.split(":")[1] : "0");
+                    Material type = Material.valueOf(item.getGlobalKey());
+                    short data = item.getSubKey().isEmpty() ? 0 : Short.parseShort(item.getSubKey());
                     int currentItemAmount = countedItems.get(new ItemStack(type, 1, data));
 
                     //Making sure to not exceed the required item amount
@@ -136,16 +140,16 @@ public final class ItemsMissions extends Mission<ItemsMissions.ItemsTracker> imp
         if (itemsTracker == null)
             return 0;
 
-        for (Map.Entry<Requirements, Integer> entry : requiredItems.entrySet()) {
-            Requirements requirement = entry.getKey();
+        for (Map.Entry<KeyRequirements, Integer> entry : requiredItems.entrySet()) {
+            KeyRequirements requirement = entry.getKey();
             int requiredAmount = entry.getValue();
 
             int itemAmount = 0;
-            for (String item : requirement) {
+            for (Key item : requirement) {
                 try {
                     //Get the amount of the item.
-                    Material type = Material.valueOf(item.contains(":") ? item.split(":")[0] : item);
-                    short data = Short.parseShort(item.contains(":") ? item.split(":")[1] : "0");
+                    Material type = Material.valueOf(item.getGlobalKey());
+                    short data = item.getSubKey().isEmpty() ? 0 : Short.parseShort(item.getSubKey());
                     int currentItemAmount = countedItems.get(new ItemStack(type, 1, data));
 
                     //Making sure to not exceed the required item amount
@@ -223,8 +227,8 @@ public final class ItemsMissions extends Mission<ItemsMissions.ItemsTracker> imp
         if (itemStack == null)
             return false;
 
-        for (Requirements requirement : requiredItems.keySet()) {
-            if (requirement.contains(itemStack.getType().name()))
+        for (KeyRequirements requirement : requiredItems.keySet()) {
+            if (requirement.contains(Key.of(itemStack)))
                 return true;
         }
 

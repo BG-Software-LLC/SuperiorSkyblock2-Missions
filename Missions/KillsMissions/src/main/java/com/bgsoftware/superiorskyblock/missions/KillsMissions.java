@@ -1,12 +1,14 @@
 package com.bgsoftware.superiorskyblock.missions;
 
 import com.bgsoftware.superiorskyblock.api.SuperiorSkyblock;
+import com.bgsoftware.superiorskyblock.api.key.Key;
+import com.bgsoftware.superiorskyblock.api.key.KeySet;
 import com.bgsoftware.superiorskyblock.api.missions.Mission;
 import com.bgsoftware.superiorskyblock.api.missions.MissionLoadException;
 import com.bgsoftware.superiorskyblock.api.wrappers.SuperiorPlayer;
-import com.bgsoftware.superiorskyblock.missions.common.DataTracker;
 import com.bgsoftware.superiorskyblock.missions.common.Placeholders;
-import com.bgsoftware.superiorskyblock.missions.common.Requirements;
+import com.bgsoftware.superiorskyblock.missions.common.requirements.KeyRequirements;
+import com.bgsoftware.superiorskyblock.missions.common.tracker.KeyDataTracker;
 import com.bgsoftware.wildstacker.api.WildStackerAPI;
 import org.bukkit.Bukkit;
 import org.bukkit.configuration.ConfigurationSection;
@@ -31,14 +33,15 @@ import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.function.Function;
 
-public final class KillsMissions extends Mission<DataTracker> implements Listener {
+public final class KillsMissions extends Mission<KeyDataTracker> implements Listener {
 
-    private final Map<Requirements, Integer> requiredEntities = new LinkedHashMap<>();
+    private final Map<KeyRequirements, Integer> requiredEntities = new LinkedHashMap<>();
     private boolean resetAfterFinish;
 
     private SuperiorSkyblock plugin;
@@ -55,9 +58,11 @@ public final class KillsMissions extends Mission<DataTracker> implements Listene
             throw new MissionLoadException("You must have the \"required-entities\" section in the config.");
 
         for (String key : requiredEntitiesSection.getKeys(false)) {
-            List<String> entityTypes = section.getStringList("required-entities." + key + ".types");
+            KeySet entityTypes = KeySet.createKeySet();
+            section.getStringList("required-entities." + key + ".types").forEach(entityTypeName ->
+                    entityTypes.add(Key.ofEntityType(entityTypeName.toUpperCase(Locale.ENGLISH))));
             int requiredAmount = section.getInt("required-entities." + key + ".amount");
-            requiredEntities.put(new Requirements(entityTypes), requiredAmount);
+            requiredEntities.put(new KeyRequirements(entityTypes), requiredAmount);
         }
 
         resetAfterFinish = section.getBoolean("reset-after-finish", false);
@@ -79,7 +84,7 @@ public final class KillsMissions extends Mission<DataTracker> implements Listene
 
     @Override
     public double getProgress(SuperiorPlayer superiorPlayer) {
-        DataTracker killsTracker = get(superiorPlayer);
+        KeyDataTracker killsTracker = get(superiorPlayer);
 
         if (killsTracker == null)
             return 0.0;
@@ -87,7 +92,7 @@ public final class KillsMissions extends Mission<DataTracker> implements Listene
         int requiredEntities = 0;
         int kills = 0;
 
-        for (Map.Entry<Requirements, Integer> requiredEntity : this.requiredEntities.entrySet()) {
+        for (Map.Entry<KeyRequirements, Integer> requiredEntity : this.requiredEntities.entrySet()) {
             requiredEntities += requiredEntity.getValue();
             kills += Math.min(killsTracker.getCounts(requiredEntity.getKey()), requiredEntity.getValue());
         }
@@ -97,14 +102,14 @@ public final class KillsMissions extends Mission<DataTracker> implements Listene
 
     @Override
     public int getProgressValue(SuperiorPlayer superiorPlayer) {
-        DataTracker killsTracker = get(superiorPlayer);
+        KeyDataTracker killsTracker = get(superiorPlayer);
 
         if (killsTracker == null)
             return 0;
 
         int kills = 0;
 
-        for (Map.Entry<Requirements, Integer> requiredEntity : this.requiredEntities.entrySet())
+        for (Map.Entry<KeyRequirements, Integer> requiredEntity : this.requiredEntities.entrySet())
             kills += Math.min(killsTracker.getCounts(requiredEntity.getKey()), requiredEntity.getValue());
 
         return kills;
@@ -123,7 +128,7 @@ public final class KillsMissions extends Mission<DataTracker> implements Listene
 
     @Override
     public void saveProgress(ConfigurationSection section) {
-        for (Map.Entry<SuperiorPlayer, DataTracker> entry : entrySet()) {
+        for (Map.Entry<SuperiorPlayer, KeyDataTracker> entry : entrySet()) {
             String uuid = entry.getKey().getUniqueId().toString();
             entry.getValue().getCounts().forEach((killedType, count) ->
                     section.set(uuid + "." + killedType, count.get()));
@@ -133,21 +138,21 @@ public final class KillsMissions extends Mission<DataTracker> implements Listene
     @Override
     public void loadProgress(ConfigurationSection section) {
         for (String uuid : section.getKeys(false)) {
-            DataTracker killsTracker = new DataTracker();
+            KeyDataTracker killsTracker = new KeyDataTracker();
             UUID playerUUID = UUID.fromString(uuid);
             SuperiorPlayer superiorPlayer = this.plugin.getPlayers().getSuperiorPlayer(playerUUID);
 
             insertData(superiorPlayer, killsTracker);
 
             for (String key : section.getConfigurationSection(uuid).getKeys(false)) {
-                killsTracker.load(key, section.getInt(uuid + "." + key));
+                killsTracker.load(Key.ofEntityType(key), section.getInt(uuid + "." + key));
             }
         }
     }
 
     @Override
     public void formatItem(SuperiorPlayer superiorPlayer, ItemStack itemStack) {
-        DataTracker killsTracker = getOrCreate(superiorPlayer, s -> new DataTracker());
+        KeyDataTracker killsTracker = getOrCreate(superiorPlayer, s -> new KeyDataTracker());
 
         if (killsTracker == null)
             return;
@@ -158,12 +163,12 @@ public final class KillsMissions extends Mission<DataTracker> implements Listene
             return;
 
         if (itemMeta.hasDisplayName())
-            itemMeta.setDisplayName(Placeholders.parsePlaceholders(this.requiredEntities, killsTracker, itemMeta.getDisplayName()));
+            itemMeta.setDisplayName(Placeholders.parseKeyPlaceholders(this.requiredEntities, killsTracker, itemMeta.getDisplayName(), false));
 
         if (itemMeta.hasLore()) {
             List<String> lore = new ArrayList<>();
             for (String line : Objects.requireNonNull(itemMeta.getLore()))
-                lore.add(Placeholders.parsePlaceholders(this.requiredEntities, killsTracker, line));
+                lore.add(Placeholders.parseKeyPlaceholders(this.requiredEntities, killsTracker, line, false));
             itemMeta.setLore(lore);
         }
 
@@ -200,12 +205,12 @@ public final class KillsMissions extends Mission<DataTracker> implements Listene
         if (!this.plugin.getMissions().canCompleteNoProgress(superiorPlayer, this))
             return;
 
-        DataTracker killsTracker = getOrCreate(superiorPlayer, s -> new DataTracker());
+        KeyDataTracker killsTracker = getOrCreate(superiorPlayer, s -> new KeyDataTracker());
 
         if (killsTracker == null)
             return;
 
-        killsTracker.track(e.getEntity().getType().name(), this.getEntityCount.apply(e.getEntity()));
+        killsTracker.track(Key.of(e.getEntity()), this.getEntityCount.apply(e.getEntity()));
 
         Bukkit.getScheduler().runTaskLaterAsynchronously(this.plugin, () -> superiorPlayer.runIfOnline(player -> {
             if (canComplete(superiorPlayer))
@@ -217,8 +222,10 @@ public final class KillsMissions extends Mission<DataTracker> implements Listene
         if (entity == null || entity instanceof ArmorStand)
             return false;
 
-        for (Requirements requirement : requiredEntities.keySet()) {
-            if (requirement.contains(entity.getType().name()))
+        Key entityKey = Key.of(entity);
+
+        for (KeyRequirements requirement : requiredEntities.keySet()) {
+            if (requirement.contains(entityKey))
                 return true;
         }
 

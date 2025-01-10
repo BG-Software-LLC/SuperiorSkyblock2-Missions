@@ -1,20 +1,21 @@
 package com.bgsoftware.superiorskyblock.missions;
 
 import com.bgsoftware.superiorskyblock.api.SuperiorSkyblock;
+import com.bgsoftware.superiorskyblock.api.key.Key;
+import com.bgsoftware.superiorskyblock.api.key.KeySet;
 import com.bgsoftware.superiorskyblock.api.missions.Mission;
 import com.bgsoftware.superiorskyblock.api.missions.MissionLoadException;
 import com.bgsoftware.superiorskyblock.api.wrappers.SuperiorPlayer;
 import com.bgsoftware.superiorskyblock.missions.blocks.BlocksTracker;
 import com.bgsoftware.superiorskyblock.missions.common.Counter;
-import com.bgsoftware.superiorskyblock.missions.common.DataTracker;
 import com.bgsoftware.superiorskyblock.missions.common.Placeholders;
-import com.bgsoftware.superiorskyblock.missions.common.Requirements;
+import com.bgsoftware.superiorskyblock.missions.common.requirements.KeyRequirements;
+import com.bgsoftware.superiorskyblock.missions.common.tracker.KeyDataTracker;
 import com.bgsoftware.wildstacker.api.WildStackerAPI;
 import com.bgsoftware.wildstacker.api.events.BarrelUnstackEvent;
 import com.bgsoftware.wildtools.api.events.CuboidWandUseEvent;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
-import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.configuration.ConfigurationSection;
@@ -36,15 +37,16 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
-public class BlocksMissions extends Mission<DataTracker> implements Listener {
+public class BlocksMissions extends Mission<KeyDataTracker> implements Listener {
 
-    private final Map<Requirements, Integer> requiredBlocks = new LinkedHashMap<>();
+    private final Map<KeyRequirements, Integer> requiredBlocks = new LinkedHashMap<>();
     private final List<Listener> registeredListeners = new LinkedList<>();
 
     private boolean onlyNatural;
@@ -62,9 +64,11 @@ public class BlocksMissions extends Mission<DataTracker> implements Listener {
             throw new MissionLoadException("You must have the \"required-blocks\" section in the config.");
 
         for (String key : section.getConfigurationSection("required-blocks").getKeys(false)) {
-            List<String> blocks = section.getStringList("required-blocks." + key + ".types");
+            KeySet blocks = KeySet.createKeySet();
+            section.getStringList("required-blocks." + key + ".types").forEach(requiredBlock ->
+                    blocks.add(Key.ofMaterialAndData(requiredBlock.toUpperCase(Locale.ENGLISH))));
             int requiredAmount = section.getInt("required-blocks." + key + ".amount");
-            requiredBlocks.put(new Requirements(blocks), requiredAmount);
+            requiredBlocks.put(new KeyRequirements(blocks), requiredAmount);
         }
 
         //resetAfterFinish = section.getBoolean("reset-after-finish", false);
@@ -84,7 +88,7 @@ public class BlocksMissions extends Mission<DataTracker> implements Listener {
             }
         }, 1L);
 
-        setClearMethod(DataTracker::clear);
+        setClearMethod(KeyDataTracker::clear);
     }
 
     public void unload() {
@@ -94,7 +98,7 @@ public class BlocksMissions extends Mission<DataTracker> implements Listener {
 
     @Override
     public double getProgress(SuperiorPlayer superiorPlayer) {
-        DataTracker blocksCounter = get(superiorPlayer);
+        KeyDataTracker blocksCounter = get(superiorPlayer);
 
         if (blocksCounter == null)
             return 0.0;
@@ -102,7 +106,7 @@ public class BlocksMissions extends Mission<DataTracker> implements Listener {
         int requiredBlocks = 0;
         int interactions = 0;
 
-        for (Map.Entry<Requirements, Integer> requiredBlock : this.requiredBlocks.entrySet()) {
+        for (Map.Entry<KeyRequirements, Integer> requiredBlock : this.requiredBlocks.entrySet()) {
             requiredBlocks += requiredBlock.getValue();
             interactions += Math.min(blocksCounter.getCounts(requiredBlock.getKey()), requiredBlock.getValue());
         }
@@ -112,14 +116,14 @@ public class BlocksMissions extends Mission<DataTracker> implements Listener {
 
     @Override
     public int getProgressValue(SuperiorPlayer superiorPlayer) {
-        DataTracker blocksCounter = get(superiorPlayer);
+        KeyDataTracker blocksCounter = get(superiorPlayer);
 
         if (blocksCounter == null)
             return 0;
 
         int interactions = 0;
 
-        for (Map.Entry<Requirements, Integer> requiredBlock : this.requiredBlocks.entrySet())
+        for (Map.Entry<KeyRequirements, Integer> requiredBlock : this.requiredBlocks.entrySet())
             interactions += Math.min(blocksCounter.getCounts(requiredBlock.getKey()), requiredBlock.getValue());
 
         return interactions;
@@ -137,9 +141,9 @@ public class BlocksMissions extends Mission<DataTracker> implements Listener {
 
     @Override
     public void saveProgress(ConfigurationSection section) {
-        for (Map.Entry<SuperiorPlayer, DataTracker> entry : entrySet()) {
+        for (Map.Entry<SuperiorPlayer, KeyDataTracker> entry : entrySet()) {
             String uuid = entry.getKey().getUniqueId().toString();
-            for (Map.Entry<String, Counter> blockCountEntry : entry.getValue().getCounts().entrySet()) {
+            for (Map.Entry<Key, Counter> blockCountEntry : entry.getValue().getCounts().entrySet()) {
                 section.set(uuid + ".counts." + blockCountEntry.getKey(), blockCountEntry.getValue().get());
             }
         }
@@ -150,7 +154,7 @@ public class BlocksMissions extends Mission<DataTracker> implements Listener {
     @Override
     public void loadProgress(ConfigurationSection section) {
         for (String uuid : section.getKeys(false)) {
-            DataTracker blocksCounter = new DataTracker();
+            KeyDataTracker blocksCounter = new KeyDataTracker();
             UUID playerUUID;
 
             try {
@@ -168,14 +172,14 @@ public class BlocksMissions extends Mission<DataTracker> implements Listener {
                 ConfigurationSection countsSection = section.getConfigurationSection(uuid + ".counts");
                 if (countsSection != null) {
                     for (String key : countsSection.getKeys(false)) {
-                        blocksCounter.load(key, countsSection.getInt(key));
+                        blocksCounter.load(Key.ofMaterialAndData(key), countsSection.getInt(key));
                     }
                 }
             } else {
                 ConfigurationSection countsSection = section.getConfigurationSection(uuid);
                 if (countsSection != null) {
                     for (String key : countsSection.getKeys(false)) {
-                        blocksCounter.load(key, section.getInt(uuid + "." + key));
+                        blocksCounter.load(Key.ofMaterialAndData(key), section.getInt(uuid + "." + key));
                     }
                 }
             }
@@ -205,7 +209,7 @@ public class BlocksMissions extends Mission<DataTracker> implements Listener {
 
     @Override
     public void formatItem(SuperiorPlayer superiorPlayer, ItemStack itemStack) {
-        DataTracker blocksCounter = getOrCreate(superiorPlayer, s -> new DataTracker());
+        KeyDataTracker blocksCounter = getOrCreate(superiorPlayer, s -> new KeyDataTracker());
 
         if (blocksCounter == null)
             return;
@@ -216,12 +220,12 @@ public class BlocksMissions extends Mission<DataTracker> implements Listener {
             return;
 
         if (itemMeta.hasDisplayName())
-            itemMeta.setDisplayName(Placeholders.parsePlaceholders(this.requiredBlocks, blocksCounter, itemMeta.getDisplayName()));
+            itemMeta.setDisplayName(Placeholders.parseKeyPlaceholders(this.requiredBlocks, blocksCounter, itemMeta.getDisplayName(), true));
 
         if (itemMeta.hasLore()) {
             List<String> lore = new ArrayList<>();
             for (String line : Objects.requireNonNull(itemMeta.getLore()))
-                lore.add(Placeholders.parsePlaceholders(this.requiredBlocks, blocksCounter, line));
+                lore.add(Placeholders.parseKeyPlaceholders(this.requiredBlocks, blocksCounter, line, true));
             itemMeta.setLore(lore);
         }
 
@@ -235,13 +239,13 @@ public class BlocksMissions extends Mission<DataTracker> implements Listener {
         if (!this.plugin.getMissions().canCompleteNoProgress(superiorPlayer, this))
             return;
 
-        BlockInfo blockInfo = new BlockInfo(e.getBlock());
-        if (!isMissionBlock(blockInfo))
+        Key blockKey = Key.of(e.getBlock());
+        if (!isMissionBlock(blockKey))
             return;
 
         if (this.progressAction == ProgressAction.PLACE) {
             // We want to handle block place only if players gain progress by placing blocks.
-            handleBlockAction(e.getPlayer(), e.getBlock().getLocation(), blockInfo, superiorPlayer, false);
+            handleBlockAction(e.getPlayer(), e.getBlock().getLocation(), blockKey, superiorPlayer, false);
         }
 
         if (this.onlyNatural) {
@@ -261,13 +265,13 @@ public class BlocksMissions extends Mission<DataTracker> implements Listener {
         if (!this.plugin.getMissions().canCompleteNoProgress(superiorPlayer, this))
             return;
 
-        BlockInfo blockInfo = new BlockInfo(e.getBlock());
-        if (!isMissionBlock(blockInfo))
+        Key blockKey = Key.of(e.getBlock());
+        if (!isMissionBlock(blockKey))
             return;
 
         if (this.progressAction == ProgressAction.BREAK) {
             // We want to handle block break only if players gain progress by breaking blocks.
-            handleBlockAction(e.getPlayer(), e.getBlock().getLocation(), blockInfo, superiorPlayer, true);
+            handleBlockAction(e.getPlayer(), e.getBlock().getLocation(), blockKey, superiorPlayer, true);
         }
 
         if (this.onlyNatural) {
@@ -306,11 +310,11 @@ public class BlocksMissions extends Mission<DataTracker> implements Listener {
             if (!BlocksMissions.this.plugin.getMissions().canCompleteNoProgress(superiorPlayer, BlocksMissions.this))
                 return;
 
-            BlockInfo blockInfo = new BlockInfo(e.getBarrel().getType(), e.getBarrel().getData());
-            if (!isMissionBlock(blockInfo))
+            Key blockKey = Key.of(e.getBarrel().getType(), e.getBarrel().getData());
+            if (!isMissionBlock(blockKey))
                 return;
 
-            handleBlockAction(player, e.getBarrel().getLocation(), blockInfo, superiorPlayer, false);
+            handleBlockAction(player, e.getBarrel().getLocation(), blockKey, superiorPlayer, false);
         }
 
     }
@@ -330,11 +334,11 @@ public class BlocksMissions extends Mission<DataTracker> implements Listener {
             for (Location location : e.getBlocks()) {
                 Block block = location.getBlock();
 
-                BlockInfo blockInfo = new BlockInfo(block);
-                if (!isMissionBlock(blockInfo))
+                Key blockKey = Key.of(block);
+                if (!isMissionBlock(blockKey))
                     return;
 
-                handleBlockAction(e.getPlayer(), location, blockInfo, superiorPlayer, true);
+                handleBlockAction(e.getPlayer(), location, blockKey, superiorPlayer, true);
 
                 if (onlyNatural) {
                     // We want to track block broken & placed only if this mission only progresses for natural blocks
@@ -350,7 +354,7 @@ public class BlocksMissions extends Mission<DataTracker> implements Listener {
     }
 
     private void handleBlockPistonMove(LinkedList<Block> blockList, BlockFace direction) {
-        blockList.removeIf(block -> !isMissionBlock(new BlockInfo(block)) ||
+        blockList.removeIf(block -> !isMissionBlock(Key.of(block)) ||
                 !BlocksTracker.INSTANCE.isTracked(BlocksTracker.TrackingType.PLACED_BLOCKS, block));
 
         if (blockList.isEmpty())
@@ -374,11 +378,11 @@ public class BlocksMissions extends Mission<DataTracker> implements Listener {
      * Handle placing or breaking of a block and add count to mission progress.
      *
      * @param player         The player.
-     * @param blockLocation  The location of the block..
-     * @param blockInfo      The {@link BlockInfo} wrapper of the block in @param blockLocation.
+     * @param blockLocation  The location of the block.
+     * @param blockKey       The {@link Key} of the block in @param blockLocation.
      * @param superiorPlayer The {@link SuperiorPlayer} wrapper of @param player.
      */
-    private void handleBlockAction(Player player, Location blockLocation, BlockInfo blockInfo,
+    private void handleBlockAction(Player player, Location blockLocation, Key blockKey,
                                    @Nullable SuperiorPlayer superiorPlayer, boolean checkForBarrels) {
         int blockAmount = getBlockAmount(player, blockLocation);
 
@@ -395,13 +399,13 @@ public class BlocksMissions extends Mission<DataTracker> implements Listener {
             return;
         }
 
-        handleBlockTrack(superiorPlayer, blockInfo, blockAmount);
+        handleBlockTrack(superiorPlayer, blockKey, blockAmount);
     }
 
-    private void handleBlockTrack(SuperiorPlayer superiorPlayer, BlockInfo blockInfo, int amount) {
-        DataTracker blocksCounter = getOrCreate(superiorPlayer, s -> new DataTracker());
+    private void handleBlockTrack(SuperiorPlayer superiorPlayer, Key blockKey, int amount) {
+        KeyDataTracker blocksCounter = getOrCreate(superiorPlayer, s -> new KeyDataTracker());
 
-        blocksCounter.track(blockInfo.getBlockKey(), amount);
+        blocksCounter.track(blockKey, amount);
 
         Bukkit.getScheduler().runTaskLaterAsynchronously(plugin, () -> superiorPlayer.runIfOnline(_player -> {
             if (canComplete(superiorPlayer))
@@ -421,10 +425,9 @@ public class BlocksMissions extends Mission<DataTracker> implements Listener {
         return amount;
     }
 
-    private boolean isMissionBlock(BlockInfo blockInfo) {
-        for (Requirements requirementsList : requiredBlocks.keySet()) {
-            if (requirementsList.contains(blockInfo.blockType.name()) ||
-                    requirementsList.contains(blockInfo.blockType.name() + ":" + blockInfo.blockData))
+    private boolean isMissionBlock(Key blockKey) {
+        for (KeyRequirements requirementsList : requiredBlocks.keySet()) {
+            if (requirementsList.contains(blockKey))
                 return true;
         }
 
@@ -434,37 +437,6 @@ public class BlocksMissions extends Mission<DataTracker> implements Listener {
     private void registerListener(Listener listener) {
         Bukkit.getPluginManager().registerEvents(listener, plugin);
         this.registeredListeners.add(listener);
-    }
-
-    private class BlockInfo {
-
-        private final Material blockType;
-        private final short blockData;
-
-        BlockInfo(Block block) {
-            this.blockType = block.getType();
-            short blockData = 0;
-
-            try {
-                //noinspection deprecation
-                blockData = block.getData();
-            } catch (Throwable ignored) {
-            }
-
-            this.blockData = blockData;
-        }
-
-        BlockInfo(Material blockType, short blockData) {
-            this.blockType = blockType;
-            this.blockData = blockData;
-        }
-
-        String getBlockKey() {
-            String combinedKey = blockType.name() + ":" + blockData;
-            return requiredBlocks.entrySet().stream().anyMatch(entry -> entry.getKey().contains(combinedKey)) ?
-                    combinedKey : blockType.name();
-        }
-
     }
 
     private enum ProgressAction {
