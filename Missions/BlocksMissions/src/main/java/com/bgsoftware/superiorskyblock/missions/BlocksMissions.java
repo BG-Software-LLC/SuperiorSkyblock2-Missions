@@ -239,8 +239,8 @@ public class BlocksMissions extends Mission<KeyDataTracker> implements Listener 
         if (!this.plugin.getMissions().canCompleteNoProgress(superiorPlayer, this))
             return;
 
-        Key blockKey = Key.of(e.getBlock());
-        if (!isMissionBlock(blockKey))
+        Key blockKey = getMissionBlockKey(Key.of(e.getBlock()));
+        if (blockKey == null)
             return;
 
         if (this.progressAction == ProgressAction.PLACE) {
@@ -265,8 +265,8 @@ public class BlocksMissions extends Mission<KeyDataTracker> implements Listener 
         if (!this.plugin.getMissions().canCompleteNoProgress(superiorPlayer, this))
             return;
 
-        Key blockKey = Key.of(e.getBlock());
-        if (!isMissionBlock(blockKey))
+        Key blockKey = getMissionBlockKey(Key.of(e.getBlock()));
+        if (blockKey == null)
             return;
 
         if (this.progressAction == ProgressAction.BREAK) {
@@ -310,8 +310,8 @@ public class BlocksMissions extends Mission<KeyDataTracker> implements Listener 
             if (!BlocksMissions.this.plugin.getMissions().canCompleteNoProgress(superiorPlayer, BlocksMissions.this))
                 return;
 
-            Key blockKey = Key.of(e.getBarrel().getType(), e.getBarrel().getData());
-            if (!isMissionBlock(blockKey))
+            Key blockKey = getMissionBlockKey(Key.of(e.getBarrel().getType(), e.getBarrel().getData()));
+            if (blockKey == null)
                 return;
 
             handleBlockAction(player, e.getBarrel().getLocation(), blockKey, superiorPlayer, false);
@@ -334,8 +334,8 @@ public class BlocksMissions extends Mission<KeyDataTracker> implements Listener 
             for (Location location : e.getBlocks()) {
                 Block block = location.getBlock();
 
-                Key blockKey = Key.of(block);
-                if (!isMissionBlock(blockKey))
+                Key blockKey = getMissionBlockKey(Key.of(block));
+                if (blockKey == null)
                     return;
 
                 handleBlockAction(e.getPlayer(), location, blockKey, superiorPlayer, true);
@@ -354,7 +354,7 @@ public class BlocksMissions extends Mission<KeyDataTracker> implements Listener 
     }
 
     private void handleBlockPistonMove(LinkedList<Block> blockList, BlockFace direction) {
-        blockList.removeIf(block -> !isMissionBlock(Key.of(block)) ||
+        blockList.removeIf(block -> getMissionBlockKey(Key.of(block)) == null ||
                 !BlocksTracker.INSTANCE.isTracked(BlocksTracker.TrackingType.PLACED_BLOCKS, block));
 
         if (blockList.isEmpty())
@@ -425,13 +425,14 @@ public class BlocksMissions extends Mission<KeyDataTracker> implements Listener 
         return amount;
     }
 
-    private boolean isMissionBlock(Key blockKey) {
+    @Nullable
+    private Key getMissionBlockKey(Key blockKey) {
         for (KeyRequirements requirementsList : requiredBlocks.keySet()) {
             if (requirementsList.contains(blockKey))
-                return true;
+                return requirementsList.getKey(blockKey);
         }
 
-        return false;
+        return null;
     }
 
     private void registerListener(Listener listener) {

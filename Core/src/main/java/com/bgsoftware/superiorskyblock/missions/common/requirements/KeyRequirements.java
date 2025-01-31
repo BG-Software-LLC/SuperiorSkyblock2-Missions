@@ -18,4 +18,8 @@ public class KeyRequirements extends RequirementsAbstract<Key> {
         return element.getGlobalKey().equalsIgnoreCase("ALL");
     }
 
+    public Key getKey(Key original) {
+        return ((KeySet) delegate()).getKey(original, original);
+    }
+
 }

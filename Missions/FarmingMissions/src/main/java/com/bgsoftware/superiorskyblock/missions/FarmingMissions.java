@@ -234,7 +234,7 @@ public final class FarmingMissions extends Mission<KeyDataTracker> implements Li
         PlantType plantType = PlantType.getBySaplingType(e.getBlock().getType());
         Key plantKey = plantType == PlantType.UNKNOWN ? Key.of(e.getBlock()) : plantType.getCachedKey();
 
-        if (!isMissionPlant(plantKey))
+        if (getMissionPlantKey(plantKey) == null)
             return;
 
         PlantsTracker.INSTANCE.track(e.getBlock(), e.getPlayer().getUniqueId());
@@ -282,8 +282,9 @@ public final class FarmingMissions extends Mission<KeyDataTracker> implements Li
     private void handlePlantGrow(Block plantBlock, BlockState newState) {
         PlantType plantType = PlantType.getByType(newState.getType());
         Key plantKey = plantType == PlantType.UNKNOWN ? Key.of(newState) : plantType.getCachedKey();
+        plantKey = getMissionPlantKey(plantKey);
 
-        if (!isMissionPlant(plantKey))
+        if (plantKey == null)
             return;
 
         int maxAge = plantType.getMaxAge();
@@ -400,16 +401,17 @@ public final class FarmingMissions extends Mission<KeyDataTracker> implements Li
         return Optional.empty();
     }
 
-    private boolean isMissionPlant(@Nullable Key blockKey) {
+    @Nullable
+    private Key getMissionPlantKey(@Nullable Key blockKey) {
         if (blockKey == null)
-            return false;
+            return null;
 
         for (KeyRequirements requirement : requiredPlants.keySet()) {
             if (requirement.contains(blockKey))
-                return true;
+                return requirement.getKey(blockKey);
         }
 
-        return false;
+        return null;
     }
 
 }
