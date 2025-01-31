@@ -59,13 +59,13 @@ public class Placeholders {
 
             @Override
             public int getCountForRequirement(KeyRequirements requirementsKey) {
+                int totalCount = 0;
+
                 for (Key requirementKey : requirementsKey) {
-                    OptionalInt count = dataTracker.getCountOptional(requirementKey);
-                    if (count.isPresent())
-                        return count.getAsInt();
+                    totalCount += dataTracker.getCount(requirementKey);
                 }
 
-                return 0;
+                return totalCount;
             }
         });
     }
