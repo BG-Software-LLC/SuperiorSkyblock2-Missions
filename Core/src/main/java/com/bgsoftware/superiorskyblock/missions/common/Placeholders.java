@@ -10,7 +10,6 @@ import javax.annotation.Nullable;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
-import java.util.OptionalInt;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -89,13 +88,13 @@ public class Placeholders {
 
             @Override
             public int getCountForRequirement(Requirements requirementsKey) {
+                int totalCount = 0;
+
                 for (String requirementKey : requirementsKey) {
-                    OptionalInt count = dataTracker.getCountOptional(requirementKey);
-                    if (count.isPresent())
-                        return count.getAsInt();
+                    totalCount += dataTracker.getCount(requirementKey);
                 }
 
-                return 0;
+                return totalCount;
             }
         });
     }
@@ -108,7 +107,8 @@ public class Placeholders {
             Optional<Integer> entry = requirement == null ? Optional.empty() : functions.lookupRequirement(requirement);
 
             if (entry.isPresent()) {
-                line = matcher.replaceAll("" + (functions.getCountForRequirement(requirement) * 100) / entry.get());
+                int count = Math.min(functions.getCountForRequirement(requirement), entry.get());
+                line = matcher.replaceAll("" + (count * 100) / entry.get());
             }
         }
 
@@ -118,7 +118,8 @@ public class Placeholders {
             Optional<Integer> entry = requirement == null ? Optional.empty() : functions.lookupRequirement(requirement);
 
             if (entry.isPresent()) {
-                line = matcher.replaceAll("" + functions.getCountForRequirement(requirement));
+                int count = Math.min(functions.getCountForRequirement(requirement), entry.get());
+                line = matcher.replaceAll(String.valueOf(count));
             }
         }
 

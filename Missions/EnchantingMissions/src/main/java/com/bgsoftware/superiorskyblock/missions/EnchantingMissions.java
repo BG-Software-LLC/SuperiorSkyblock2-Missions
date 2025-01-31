@@ -111,7 +111,7 @@ public final class EnchantingMissions extends Mission<RawDataTracker> implements
 
         for (RequiredEnchantment requiredEnchantment : this.requiredEnchantments.values()) {
             requiredItems += requiredEnchantment.amount;
-            enchants += enchantsTracker.getCount(requiredEnchantment.key);
+            enchants += Math.min(enchantsTracker.getCount(requiredEnchantment.key), requiredEnchantment.amount);
         }
 
         return (double) enchants / requiredItems;
@@ -127,7 +127,7 @@ public final class EnchantingMissions extends Mission<RawDataTracker> implements
         int enchants = 0;
 
         for (RequiredEnchantment requiredEnchantment : this.requiredEnchantments.values()) {
-            enchants += enchantsTracker.getCount(requiredEnchantment.key);
+            enchants += Math.min(enchantsTracker.getCount(requiredEnchantment.key), requiredEnchantment.amount);
         }
 
         return enchants;

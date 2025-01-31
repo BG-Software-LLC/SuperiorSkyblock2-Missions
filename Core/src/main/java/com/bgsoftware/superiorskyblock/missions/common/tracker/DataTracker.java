@@ -31,11 +31,6 @@ public abstract class DataTracker<K, R extends IRequirements<K>> {
         return Optional.ofNullable(this.trackedData.get(blockKey)).map(Counter::get).orElse(0);
     }
 
-    public OptionalInt getCountOptional(K blockKey) {
-        Counter counter = this.trackedData.get(blockKey);
-        return counter == null ? OptionalInt.empty() : OptionalInt.of(counter.get());
-    }
-
     public int getGlobalCounter() {
         return this.globalCounter.get();
     }
