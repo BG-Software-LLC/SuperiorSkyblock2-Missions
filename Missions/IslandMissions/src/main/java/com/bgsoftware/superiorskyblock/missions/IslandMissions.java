@@ -21,6 +21,7 @@ import org.bukkit.event.Listener;
 import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.java.JavaPlugin;
 
+import javax.annotation.Nullable;
 import javax.script.SimpleBindings;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -144,7 +145,8 @@ public final class IslandMissions extends Mission<Boolean> implements Listener {
         }));
     }
 
-    private void tryComplete(Event event, SuperiorPlayer superiorPlayer, SuperiorPlayer targetPlayer, boolean isTarget) {
+    private void tryComplete(Event event, @Nullable SuperiorPlayer superiorPlayer,
+                             @Nullable SuperiorPlayer targetPlayer, boolean isTarget) {
         boolean success = false;
 
         SimpleBindings bindings = new SimpleBindings();
@@ -154,7 +156,7 @@ public final class IslandMissions extends Mission<Boolean> implements Listener {
 
         try {
             String result = scriptEngine.eval(successCheck, bindings) + "";
-            if (this.placeholdersService != null) {
+            if (this.placeholdersService != null && superiorPlayer != null) {
                 result = placeholdersService.parsePlaceholders(superiorPlayer.asOfflinePlayer(), result);
             }
             success = Boolean.parseBoolean(result);
