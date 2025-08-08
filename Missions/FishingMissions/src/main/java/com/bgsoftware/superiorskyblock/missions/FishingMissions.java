@@ -1,13 +1,17 @@
 package com.bgsoftware.superiorskyblock.missions;
 
 import com.bgsoftware.superiorskyblock.api.SuperiorSkyblock;
+import com.bgsoftware.superiorskyblock.api.key.Key;
+import com.bgsoftware.superiorskyblock.api.key.KeySet;
 import com.bgsoftware.superiorskyblock.api.missions.Mission;
 import com.bgsoftware.superiorskyblock.api.missions.MissionLoadException;
 import com.bgsoftware.superiorskyblock.api.wrappers.SuperiorPlayer;
+import com.bgsoftware.superiorskyblock.missions.common.Counter;
 import com.bgsoftware.superiorskyblock.missions.common.Placeholders;
-import com.bgsoftware.superiorskyblock.missions.common.requirements.CustomRequirements;
+import com.bgsoftware.superiorskyblock.missions.common.requirements.KeyRequirements;
+import com.bgsoftware.superiorskyblock.missions.common.tracker.DataTracker;
+import com.bgsoftware.superiorskyblock.missions.common.tracker.KeyDataTracker;
 import org.bukkit.Bukkit;
-import org.bukkit.Material;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Item;
 import org.bukkit.event.EventHandler;
@@ -19,20 +23,18 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.plugin.java.JavaPlugin;
 
+import javax.annotation.Nullable;
 import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
-import java.util.Set;
 import java.util.UUID;
 
-public final class FishingMissions extends Mission<FishingMissions.FishingTracker> implements Listener {
+public final class FishingMissions extends Mission<KeyDataTracker> implements Listener {
 
-    private final Map<CustomRequirements<ItemStack>, Integer> itemsToCatch = new LinkedHashMap<>();
+    private final Map<KeyRequirements, Integer> itemsToCatch = new LinkedHashMap<>();
 
     private SuperiorSkyblock plugin;
 
@@ -45,41 +47,16 @@ public final class FishingMissions extends Mission<FishingMissions.FishingTracke
             throw new MissionLoadException("You must have the \"required-caughts\" section in the config.");
 
         for (String key : requiredCaughtsSection.getKeys(false)) {
-            List<String> itemTypes = section.getStringList("required-caughts." + key + ".types");
+            KeySet blocks = KeySet.createKeySet();
+            section.getStringList("required-caughts." + key + ".types").forEach(requiredBlock ->
+                    blocks.add(Key.ofMaterialAndData(requiredBlock.toUpperCase(Locale.ENGLISH))));
             int amount = section.getInt("required-caughts." + key + ".amount", 1);
-
-            CustomRequirements<ItemStack> itemsToCatch = new CustomRequirements<>();
-
-            for (String itemType : itemTypes) {
-                byte data = 0;
-
-                if (itemType.contains(":")) {
-                    String[] sections = itemType.split(":");
-                    itemType = sections[0];
-                    try {
-                        data = sections.length == 2 ? Byte.parseByte(sections[1]) : 0;
-                    } catch (NumberFormatException ex) {
-                        throw new MissionLoadException("Invalid fishing item data " + sections[1] + ".");
-                    }
-                }
-
-                Material material;
-
-                try {
-                    material = Material.valueOf(itemType);
-                } catch (IllegalArgumentException ex) {
-                    throw new MissionLoadException("Invalid fishing item " + itemType + ".");
-                }
-
-                itemsToCatch.add(new ItemStack(material, 1, data));
-            }
-
-            this.itemsToCatch.put(itemsToCatch, amount);
+            this.itemsToCatch.put(new KeyRequirements(blocks), amount);
         }
 
         Bukkit.getPluginManager().registerEvents(this, plugin);
 
-        setClearMethod(fishingTracker -> fishingTracker.caughtItems.clear());
+        setClearMethod(DataTracker::clear);
     }
 
     public void unload() {
@@ -88,7 +65,7 @@ public final class FishingMissions extends Mission<FishingMissions.FishingTracke
 
     @Override
     public double getProgress(SuperiorPlayer superiorPlayer) {
-        FishingTracker fishingTracker = get(superiorPlayer);
+        KeyDataTracker fishingTracker = get(superiorPlayer);
 
         if (fishingTracker == null)
             return 0.0;
@@ -96,9 +73,9 @@ public final class FishingMissions extends Mission<FishingMissions.FishingTracke
         int requiredItems = 0;
         int interactions = 0;
 
-        for (Map.Entry<CustomRequirements<ItemStack>, Integer> entry : this.itemsToCatch.entrySet()) {
+        for (Map.Entry<KeyRequirements, Integer> entry : this.itemsToCatch.entrySet()) {
             requiredItems += entry.getValue();
-            interactions += Math.min(fishingTracker.getCaughts(entry.getKey()), entry.getValue());
+            interactions += Math.min(fishingTracker.getCounts(entry.getKey()), entry.getValue());
         }
 
         return (double) interactions / requiredItems;
@@ -106,15 +83,15 @@ public final class FishingMissions extends Mission<FishingMissions.FishingTracke
 
     @Override
     public int getProgressValue(SuperiorPlayer superiorPlayer) {
-        FishingTracker fishingTracker = get(superiorPlayer);
+        KeyDataTracker fishingTracker = get(superiorPlayer);
 
         if (fishingTracker == null)
             return 0;
 
         int interactions = 0;
 
-        for (Map.Entry<CustomRequirements<ItemStack>, Integer> entry : this.itemsToCatch.entrySet())
-            interactions += Math.min(fishingTracker.getCaughts(entry.getKey()), entry.getValue());
+        for (Map.Entry<KeyRequirements, Integer> entry : this.itemsToCatch.entrySet())
+            interactions += Math.min(fishingTracker.getCounts(entry.getKey()), entry.getValue());
 
         return interactions;
     }
@@ -131,11 +108,11 @@ public final class FishingMissions extends Mission<FishingMissions.FishingTracke
 
     @Override
     public void saveProgress(ConfigurationSection section) {
-        for (Map.Entry<SuperiorPlayer, FishingTracker> entry : entrySet()) {
+        for (Map.Entry<SuperiorPlayer, KeyDataTracker> entry : entrySet()) {
             String uuid = entry.getKey().getUniqueId().toString();
             int index = 0;
-            for (Map.Entry<ItemStack, Integer> craftedEntry : entry.getValue().caughtItems.entrySet()) {
-                section.set(uuid + "." + index + ".item", craftedEntry.getKey());
+            for (Map.Entry<Key, Counter> craftedEntry : entry.getValue().getCounts().entrySet()) {
+                section.set(uuid + "." + index + ".item", craftedEntry.getKey().toString());
                 section.set(uuid + "." + index + ".amount", craftedEntry.getValue());
                 index++;
             }
@@ -148,23 +125,31 @@ public final class FishingMissions extends Mission<FishingMissions.FishingTracke
             if (uuid.equals("players"))
                 continue;
 
-            FishingTracker fishingTracker = new FishingTracker();
+            KeyDataTracker fishingTracker = new KeyDataTracker();
             UUID playerUUID = UUID.fromString(uuid);
             SuperiorPlayer superiorPlayer = this.plugin.getPlayers().getSuperiorPlayer(playerUUID);
 
             insertData(superiorPlayer, fishingTracker);
 
             for (String key : section.getConfigurationSection(uuid).getKeys(false)) {
-                ItemStack itemStack = section.getItemStack(uuid + "." + key + ".item");
-                int amount = section.getInt(uuid + "." + key + ".amount");
-                fishingTracker.caughtItems.put(itemStack, amount);
+                Key typeKey;
+                if (section.isItemStack(uuid + "." + key + ".item")) {
+                    ItemStack itemStack = section.getItemStack(uuid + "." + key + ".item");
+                    typeKey = itemStack == null ? null : Key.of(itemStack);
+                } else {
+                    typeKey = Key.ofMaterialAndData(section.getString(uuid + "." + key + ".item"));
+                }
+                if (typeKey != null) {
+                    int amount = section.getInt(uuid + "." + key + ".amount");
+                    fishingTracker.load(typeKey, amount);
+                }
             }
         }
     }
 
     @Override
     public void formatItem(SuperiorPlayer superiorPlayer, ItemStack itemStack) {
-        FishingTracker fishingTracker = getOrCreate(superiorPlayer, s -> new FishingTracker());
+        KeyDataTracker fishingTracker = getOrCreate(superiorPlayer, s -> new KeyDataTracker());
 
         if (fishingTracker == null)
             return;
@@ -174,37 +159,13 @@ public final class FishingMissions extends Mission<FishingMissions.FishingTracke
         if (itemMeta == null)
             return;
 
-        Placeholders.PlaceholdersFunctions<CustomRequirements<ItemStack>> placeholdersFunctions = new Placeholders.PlaceholdersFunctions<CustomRequirements<ItemStack>>() {
-            @Override
-            public CustomRequirements<ItemStack> getRequirementFromKey(String key) {
-                ItemStack itemStack = new ItemStack(Material.valueOf(key));
-
-                for (CustomRequirements<ItemStack> requirements : itemsToCatch.keySet()) {
-                    if (requirements.contains(itemStack))
-                        return requirements;
-                }
-
-                return null;
-            }
-
-            @Override
-            public Optional<Integer> lookupRequirement(CustomRequirements<ItemStack> requirement) {
-                return Optional.ofNullable(itemsToCatch.get(requirement));
-            }
-
-            @Override
-            public int getCountForRequirement(CustomRequirements<ItemStack> requirement) {
-                return fishingTracker.getCaughts(requirement);
-            }
-        };
-
         if (itemMeta.hasDisplayName())
-            itemMeta.setDisplayName(Placeholders.parsePlaceholders(itemMeta.getDisplayName(), placeholdersFunctions));
+            itemMeta.setDisplayName(Placeholders.parseKeyPlaceholders(this.itemsToCatch, fishingTracker, itemMeta.getDisplayName(), true));
 
         if (itemMeta.hasLore()) {
             List<String> lore = new ArrayList<>();
             for (String line : Objects.requireNonNull(itemMeta.getLore()))
-                lore.add(Placeholders.parsePlaceholders(line, placeholdersFunctions));
+                lore.add(Placeholders.parseKeyPlaceholders(this.itemsToCatch, fishingTracker, line, true));
             itemMeta.setLore(lore);
         }
 
@@ -216,28 +177,28 @@ public final class FishingMissions extends Mission<FishingMissions.FishingTracke
         if (!(e.getCaught() instanceof Item) || e.getState() != PlayerFishEvent.State.CAUGHT_FISH)
             return;
 
-        Item caughtItem = (Item) e.getCaught();
-        ItemStack caughtItemStack = caughtItem.getItemStack().clone();
-        caughtItemStack.setAmount(1);
-
-        if (!isMissionItem(caughtItemStack))
-            return;
-
         SuperiorPlayer superiorPlayer = this.plugin.getPlayers().getSuperiorPlayer(e.getPlayer());
 
         if (!this.plugin.getMissions().canCompleteNoProgress(superiorPlayer, this))
             return;
 
-        trackItem(superiorPlayer, caughtItem.getItemStack());
+        Item caughtItem = (Item) e.getCaught();
+        ItemStack caughtItemStack = caughtItem.getItemStack();
+
+        Key itemKey = getMissionItemKey(Key.of(caughtItemStack));
+        if (itemKey == null)
+            return;
+
+        trackItem(superiorPlayer, itemKey, caughtItemStack.getAmount());
     }
 
-    private void trackItem(SuperiorPlayer superiorPlayer, ItemStack itemStack) {
-        FishingTracker blocksTracker = getOrCreate(superiorPlayer, s -> new FishingTracker());
+    private void trackItem(SuperiorPlayer superiorPlayer, Key itemKey, int count) {
+        KeyDataTracker blocksTracker = getOrCreate(superiorPlayer, s -> new KeyDataTracker());
 
         if (blocksTracker == null)
             return;
 
-        blocksTracker.trackItem(itemStack);
+        blocksTracker.track(itemKey, count);
 
         Bukkit.getScheduler().runTaskLaterAsynchronously(plugin, () -> superiorPlayer.runIfOnline(player -> {
             if (canComplete(superiorPlayer))
@@ -245,38 +206,14 @@ public final class FishingMissions extends Mission<FishingMissions.FishingTracke
         }), 2L);
     }
 
-    private boolean isMissionItem(ItemStack itemStack) {
-        if (itemStack == null)
-            return false;
-
-        for (Set<ItemStack> requiredItem : this.itemsToCatch.keySet()) {
-            if (requiredItem.contains(itemStack))
-                return true;
+    @Nullable
+    private Key getMissionItemKey(Key blockKey) {
+        for (KeyRequirements requirementsList : itemsToCatch.keySet()) {
+            if (requirementsList.contains(blockKey))
+                return requirementsList.getKey(blockKey);
         }
 
-        return false;
-    }
-
-    public static class FishingTracker {
-
-        private final Map<ItemStack, Integer> caughtItems = new HashMap<>();
-
-        void trackItem(ItemStack itemStack) {
-            ItemStack keyItem = itemStack.clone();
-            keyItem.setAmount(1);
-            caughtItems.put(keyItem, caughtItems.getOrDefault(keyItem, 0) + itemStack.getAmount());
-        }
-
-        int getCaughts(Collection<ItemStack> itemStacks) {
-            int caughts = 0;
-
-            for (ItemStack itemStack : itemStacks) {
-                caughts += caughtItems.getOrDefault(itemStack, 0);
-            }
-
-            return caughts;
-        }
-
+        return null;
     }
 
 }
