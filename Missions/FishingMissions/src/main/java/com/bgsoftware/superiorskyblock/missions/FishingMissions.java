@@ -113,7 +113,7 @@ public final class FishingMissions extends Mission<KeyDataTracker> implements Li
             int index = 0;
             for (Map.Entry<Key, Counter> craftedEntry : entry.getValue().getCounts().entrySet()) {
                 section.set(uuid + "." + index + ".item", craftedEntry.getKey().toString());
-                section.set(uuid + "." + index + ".amount", craftedEntry.getValue());
+                section.set(uuid + "." + index + ".amount", craftedEntry.getValue().get());
                 index++;
             }
         }
