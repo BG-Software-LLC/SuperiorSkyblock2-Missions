@@ -155,7 +155,8 @@ public final class FarmingMissions extends Mission<KeyDataTracker> implements Li
                 insertData(superiorPlayer, farmingTracker);
 
                 for (String key : grownPlants.getConfigurationSection(uuid).getKeys(false)) {
-                    farmingTracker.load(Key.ofMaterialAndData(key), grownPlants.getInt(uuid + "." + key));
+                    Key typeKey = getMissionPlantKey(Key.ofMaterialAndData(key));
+                    farmingTracker.load(typeKey, grownPlants.getInt(uuid + "." + key));
                 }
             }
         }

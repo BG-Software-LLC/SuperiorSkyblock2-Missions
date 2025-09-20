@@ -172,14 +172,16 @@ public class BlocksMissions extends Mission<KeyDataTracker> implements Listener 
                 ConfigurationSection countsSection = section.getConfigurationSection(uuid + ".counts");
                 if (countsSection != null) {
                     for (String key : countsSection.getKeys(false)) {
-                        blocksCounter.load(Key.ofMaterialAndData(key), countsSection.getInt(key));
+                        Key typeKey = getMissionBlockKey(Key.ofMaterialAndData(key));
+                        blocksCounter.load(typeKey, countsSection.getInt(key));
                     }
                 }
             } else {
                 ConfigurationSection countsSection = section.getConfigurationSection(uuid);
                 if (countsSection != null) {
                     for (String key : countsSection.getKeys(false)) {
-                        blocksCounter.load(Key.ofMaterialAndData(key), section.getInt(uuid + "." + key));
+                        Key typeKey = getMissionBlockKey(Key.ofMaterialAndData(key));
+                        blocksCounter.load(typeKey, section.getInt(uuid + "." + key));
                     }
                 }
             }

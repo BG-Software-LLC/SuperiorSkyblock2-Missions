@@ -140,6 +140,7 @@ public final class FishingMissions extends Mission<KeyDataTracker> implements Li
                     typeKey = Key.ofMaterialAndData(section.getString(uuid + "." + key + ".item"));
                 }
                 if (typeKey != null) {
+                    typeKey = getMissionItemKey(typeKey);
                     int amount = section.getInt(uuid + "." + key + ".amount");
                     fishingTracker.load(typeKey, amount);
                 }
