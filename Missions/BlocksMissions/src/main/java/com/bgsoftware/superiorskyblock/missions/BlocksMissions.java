@@ -5,6 +5,7 @@ import com.bgsoftware.superiorskyblock.api.key.Key;
 import com.bgsoftware.superiorskyblock.api.key.KeySet;
 import com.bgsoftware.superiorskyblock.api.missions.Mission;
 import com.bgsoftware.superiorskyblock.api.missions.MissionLoadException;
+import com.bgsoftware.superiorskyblock.api.missions.store.UnifiedPayload;
 import com.bgsoftware.superiorskyblock.api.wrappers.SuperiorPlayer;
 import com.bgsoftware.superiorskyblock.missions.blocks.BlocksTracker;
 import com.bgsoftware.superiorskyblock.missions.common.Counter;
@@ -19,6 +20,7 @@ import org.bukkit.Location;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.configuration.ConfigurationSection;
+import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -140,57 +142,118 @@ public class BlocksMissions extends Mission<KeyDataTracker> implements Listener 
     }
 
     @Override
-    public void saveProgress(ConfigurationSection section) {
-        for (Map.Entry<SuperiorPlayer, KeyDataTracker> entry : entrySet()) {
-            String uuid = entry.getKey().getUniqueId().toString();
-            for (Map.Entry<Key, Counter> blockCountEntry : entry.getValue().getCounts().entrySet()) {
-                section.set(uuid + ".counts." + blockCountEntry.getKey(), blockCountEntry.getValue().get());
+    public void saveProgress(UnifiedPayload out) {
+        for (Map.Entry<SuperiorPlayer, KeyDataTracker> e : entrySet()) {
+            String uuid = e.getKey().getUniqueId().toString();
+            UnifiedPayload.HolderData hd = out.holders.computeIfAbsent(uuid, k -> new UnifiedPayload.HolderData());
+            for (Map.Entry<Key, Counter> c : e.getValue().getCounts().entrySet()) {
+                hd.counts.put(String.valueOf(c.getKey()), c.getValue().get());
             }
         }
 
-        BlocksTracker.INSTANCE.save(section);
+        YamlConfiguration tmp = new YamlConfiguration();
+        BlocksTracker.INSTANCE.save(tmp);
+        ConfigurationSection tracked = tmp.getConfigurationSection("tracked");
+        if (tracked != null && !tracked.getKeys(true).isEmpty()) {
+            if (out.globals == null) out.globals = new LinkedHashMap<>();
+            out.globals.put("tracked", toDeepMap(tracked));
+        }
+    }
+
+    private static Map<String, Object> toDeepMap(ConfigurationSection section) {
+        Map<String, Object> out = new LinkedHashMap<>();
+        for (String key : section.getKeys(false)) {
+            Object val = section.get(key);
+            if (val instanceof ConfigurationSection) {
+                out.put(key, toDeepMap((ConfigurationSection) val));
+            } else {
+                out.put(key, val);
+            }
+        }
+        return out;
     }
 
     @Override
     public void loadProgress(ConfigurationSection section) {
-        for (String uuid : section.getKeys(false)) {
-            KeyDataTracker blocksCounter = new KeyDataTracker();
-            UUID playerUUID;
+        if (section == null) return;
 
-            try {
-                playerUUID = UUID.fromString(uuid);
-            } catch (Exception error) {
-                // tracked section probably, skipping.
-                continue;
+        for (String uuidStr : section.getKeys(false)) {
+            UUID uuid;
+            try { uuid = UUID.fromString(uuidStr); } catch (Exception ex) { continue; }
+
+            SuperiorPlayer sp = this.plugin.getPlayers().getSuperiorPlayer(uuid);
+            if (sp == null) continue;
+
+            ConfigurationSection holderSec = section.getConfigurationSection(uuidStr);
+            if (holderSec == null) continue;
+
+            ConfigurationSection counts = holderSec.getConfigurationSection("counts");
+            if (counts == null) counts = holderSec;
+
+            for (String key : counts.getKeys(false)) {
+                if (!counts.isInt(key)) continue;
+                int val = counts.getInt(key, 0);
+                if (val <= 0) continue;
+
+                Key typeKey = getMissionBlockKey(Key.ofMaterialAndData(key));
+                if (typeKey == null) continue;
+
+                KeyDataTracker tracker = getOrCreate(sp, s -> new KeyDataTracker());
+                tracker.load(typeKey, val);
             }
-
-            SuperiorPlayer superiorPlayer = this.plugin.getPlayers().getSuperiorPlayer(playerUUID);
-
-            insertData(superiorPlayer, blocksCounter);
-
-            if (section.contains(uuid + ".counts")) {
-                ConfigurationSection countsSection = section.getConfigurationSection(uuid + ".counts");
-                if (countsSection != null) {
-                    for (String key : countsSection.getKeys(false)) {
-                        Key typeKey = getMissionBlockKey(Key.ofMaterialAndData(key));
-                        blocksCounter.load(typeKey, countsSection.getInt(key));
-                    }
-                }
-            } else {
-                ConfigurationSection countsSection = section.getConfigurationSection(uuid);
-                if (countsSection != null) {
-                    for (String key : countsSection.getKeys(false)) {
-                        Key typeKey = getMissionBlockKey(Key.ofMaterialAndData(key));
-                        blocksCounter.load(typeKey, section.getInt(uuid + "." + key));
-                    }
-                }
-            }
-
-            loadTrackedBlocks(section.getConfigurationSection(uuid + ".tracked.placed"), section.getConfigurationSection(uuid + ".tracked.broken"));
+            loadTrackedBlocks(
+                    holderSec.getConfigurationSection("tracked.placed"),
+                    holderSec.getConfigurationSection("tracked.broken")
+            );
         }
 
-        loadTrackedBlocks(section.getConfigurationSection("tracked.placed"), section.getConfigurationSection("tracked.broken"));
+        loadTrackedBlocks(
+                section.getConfigurationSection("tracked.placed"),
+                section.getConfigurationSection("tracked.broken")
+        );
     }
+
+    @Override
+    public void loadProgress(UnifiedPayload in) {
+        if (in == null) return;
+
+        if (in.holders != null && !in.holders.isEmpty()) {
+            for (Map.Entry<String, UnifiedPayload.HolderData> e : in.holders.entrySet()) {
+                String id = e.getKey();
+
+                UUID uuid;
+                try { uuid = UUID.fromString(id); } catch (Exception ex) { continue; }
+
+                SuperiorPlayer sp = this.plugin.getPlayers().getSuperiorPlayer(uuid);
+                KeyDataTracker tracker = getOrCreate(sp, s -> new KeyDataTracker());
+                if (tracker == null) continue;
+
+                UnifiedPayload.HolderData hd = e.getValue();
+                if (hd == null) continue;
+
+                for (Map.Entry<String, Integer> c : hd.counts.entrySet()) {
+                    Key typeKey = getMissionBlockKey(Key.ofMaterialAndData(c.getKey()));
+                    if (typeKey != null) tracker.load(typeKey, c.getValue());
+                }
+            }
+        }
+
+        if (in.globals != null) {
+            Object trackedObj = in.globals.get("tracked");
+            if (trackedObj instanceof Map) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> trackedMap = (Map<String, Object>) trackedObj;
+
+                YamlConfiguration yaml = new YamlConfiguration();
+                yaml.createSection("tracked", trackedMap);
+                loadTrackedBlocks(
+                        yaml.getConfigurationSection("tracked.placed"),
+                        yaml.getConfigurationSection("tracked.broken")
+                );
+            }
+        }
+    }
+
 
     private static void loadTrackedBlocks(@Nullable ConfigurationSection trackedPlacedSection,
                                           @Nullable ConfigurationSection trackedBrokenSection) {
