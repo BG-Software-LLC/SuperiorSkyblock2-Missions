@@ -50,6 +50,7 @@ public class BlocksMissions extends Mission<KeyDataTracker> implements Listener 
     private final List<Listener> registeredListeners = new LinkedList<>();
 
     private boolean onlyNatural;
+    private boolean resetAfterFinish;
     private ProgressAction progressAction;
 
     private SuperiorSkyblock plugin;
@@ -71,7 +72,7 @@ public class BlocksMissions extends Mission<KeyDataTracker> implements Listener 
             requiredBlocks.put(new KeyRequirements(blocks), requiredAmount);
         }
 
-        //resetAfterFinish = section.getBoolean("reset-after-finish", false);
+        this.resetAfterFinish = section.getBoolean("reset-after-finish", false);
         this.onlyNatural = section.getBoolean("only-natural-blocks", false);
         this.progressAction = section.getBoolean("blocks-placement", false) ?
                 ProgressAction.PLACE : ProgressAction.BREAK;
@@ -131,7 +132,8 @@ public class BlocksMissions extends Mission<KeyDataTracker> implements Listener 
 
     @Override
     public void onComplete(SuperiorPlayer superiorPlayer) {
-        clearData(superiorPlayer);
+        if (resetAfterFinish)
+            clearData(superiorPlayer);
     }
 
     @Override
