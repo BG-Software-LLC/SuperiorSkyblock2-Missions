@@ -1,11 +1,10 @@
 package com.bgsoftware.superiorskyblock.missions;
 
-import com.bgsoftware.superiorskyblock.api.SuperiorSkyblock;
 import com.bgsoftware.superiorskyblock.api.key.Key;
 import com.bgsoftware.superiorskyblock.api.key.KeySet;
-import com.bgsoftware.superiorskyblock.api.missions.Mission;
 import com.bgsoftware.superiorskyblock.api.missions.MissionLoadException;
 import com.bgsoftware.superiorskyblock.api.wrappers.SuperiorPlayer;
+import com.bgsoftware.superiorskyblock.missions.common.BuiltinMission;
 import com.bgsoftware.superiorskyblock.missions.common.Placeholders;
 import com.bgsoftware.superiorskyblock.missions.common.requirements.KeyRequirements;
 import com.bgsoftware.superiorskyblock.missions.common.tracker.KeyDataTracker;
@@ -19,14 +18,12 @@ import org.bukkit.entity.Player;
 import org.bukkit.entity.Projectile;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
-import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
-import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.projectiles.ProjectileSource;
 
 import javax.annotation.Nullable;
@@ -39,19 +36,14 @@ import java.util.Objects;
 import java.util.UUID;
 import java.util.function.Function;
 
-public final class KillsMissions extends Mission<KeyDataTracker> implements Listener {
+public final class KillsMissions extends BuiltinMission<KeyDataTracker> implements Listener {
 
     private final Map<KeyRequirements, Integer> requiredEntities = new LinkedHashMap<>();
-    private boolean resetAfterFinish;
-
-    private SuperiorSkyblock plugin;
 
     private Function<LivingEntity, Integer> getEntityCount;
 
     @Override
-    public void load(JavaPlugin plugin, ConfigurationSection section) throws MissionLoadException {
-        this.plugin = (SuperiorSkyblock) plugin;
-
+    protected void loadConfiguration(ConfigurationSection section) throws MissionLoadException {
         ConfigurationSection requiredEntitiesSection = section.getConfigurationSection("required-entities");
 
         if (requiredEntitiesSection == null)
@@ -64,10 +56,11 @@ public final class KillsMissions extends Mission<KeyDataTracker> implements List
             int requiredAmount = section.getInt("required-entities." + key + ".amount");
             requiredEntities.put(new KeyRequirements(entityTypes), requiredAmount);
         }
+    }
 
-        resetAfterFinish = section.getBoolean("reset-after-finish", false);
-
-        Bukkit.getPluginManager().registerEvents(this, plugin);
+    @Override
+    protected void registerListeners() {
+        registerListener(this);
 
         plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
             if (plugin.getServer().getPluginManager().isPluginEnabled("WildStacker")) {
@@ -78,8 +71,9 @@ public final class KillsMissions extends Mission<KeyDataTracker> implements List
         }, 1L);
     }
 
-    public void unload() {
-        HandlerList.unregisterAll(this);
+    @Override
+    protected void clearModuleData(KeyDataTracker data) {
+        data.clear();
     }
 
     @Override
@@ -113,17 +107,6 @@ public final class KillsMissions extends Mission<KeyDataTracker> implements List
             kills += Math.min(killsTracker.getCounts(requiredEntity.getKey()), requiredEntity.getValue());
 
         return kills;
-    }
-
-    @Override
-    public void onComplete(SuperiorPlayer superiorPlayer) {
-        if (resetAfterFinish)
-            clearData(superiorPlayer);
-    }
-
-    @Override
-    public void onCompleteFail(SuperiorPlayer superiorPlayer) {
-
     }
 
     @Override

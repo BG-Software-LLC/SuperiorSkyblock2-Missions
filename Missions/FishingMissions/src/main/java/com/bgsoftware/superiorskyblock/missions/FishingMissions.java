@@ -1,27 +1,23 @@
 package com.bgsoftware.superiorskyblock.missions;
 
-import com.bgsoftware.superiorskyblock.api.SuperiorSkyblock;
 import com.bgsoftware.superiorskyblock.api.key.Key;
 import com.bgsoftware.superiorskyblock.api.key.KeySet;
-import com.bgsoftware.superiorskyblock.api.missions.Mission;
 import com.bgsoftware.superiorskyblock.api.missions.MissionLoadException;
 import com.bgsoftware.superiorskyblock.api.wrappers.SuperiorPlayer;
+import com.bgsoftware.superiorskyblock.missions.common.BuiltinMission;
 import com.bgsoftware.superiorskyblock.missions.common.Counter;
 import com.bgsoftware.superiorskyblock.missions.common.Placeholders;
 import com.bgsoftware.superiorskyblock.missions.common.requirements.KeyRequirements;
-import com.bgsoftware.superiorskyblock.missions.common.tracker.DataTracker;
 import com.bgsoftware.superiorskyblock.missions.common.tracker.KeyDataTracker;
 import org.bukkit.Bukkit;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Item;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
-import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerFishEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
-import org.bukkit.plugin.java.JavaPlugin;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
@@ -32,16 +28,12 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 
-public final class FishingMissions extends Mission<KeyDataTracker> implements Listener {
+public final class FishingMissions extends BuiltinMission<KeyDataTracker> implements Listener {
 
     private final Map<KeyRequirements, Integer> itemsToCatch = new LinkedHashMap<>();
 
-    private SuperiorSkyblock plugin;
-
     @Override
-    public void load(JavaPlugin plugin, ConfigurationSection section) throws MissionLoadException {
-        this.plugin = (SuperiorSkyblock) plugin;
-
+    protected void loadConfiguration(ConfigurationSection section) throws MissionLoadException {
         ConfigurationSection requiredCaughtsSection = section.getConfigurationSection("required-caughts");
         if (requiredCaughtsSection == null)
             throw new MissionLoadException("You must have the \"required-caughts\" section in the config.");
@@ -53,14 +45,16 @@ public final class FishingMissions extends Mission<KeyDataTracker> implements Li
             int amount = section.getInt("required-caughts." + key + ".amount", 1);
             this.itemsToCatch.put(new KeyRequirements(blocks), amount);
         }
-
-        Bukkit.getPluginManager().registerEvents(this, plugin);
-
-        setClearMethod(DataTracker::clear);
     }
 
-    public void unload() {
-        HandlerList.unregisterAll(this);
+    @Override
+    protected void registerListeners() {
+        registerListener(this);
+    }
+
+    @Override
+    protected void clearModuleData(KeyDataTracker data) {
+        data.clear();
     }
 
     @Override
@@ -94,16 +88,6 @@ public final class FishingMissions extends Mission<KeyDataTracker> implements Li
             interactions += Math.min(fishingTracker.getCounts(entry.getKey()), entry.getValue());
 
         return interactions;
-    }
-
-    @Override
-    public void onComplete(SuperiorPlayer superiorPlayer) {
-        onCompleteFail(superiorPlayer);
-    }
-
-    @Override
-    public void onCompleteFail(SuperiorPlayer superiorPlayer) {
-        clearData(superiorPlayer);
     }
 
     @Override

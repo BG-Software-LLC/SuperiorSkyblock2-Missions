@@ -1,9 +1,8 @@
 package com.bgsoftware.superiorskyblock.missions;
 
-import com.bgsoftware.superiorskyblock.api.SuperiorSkyblock;
-import com.bgsoftware.superiorskyblock.api.missions.Mission;
 import com.bgsoftware.superiorskyblock.api.missions.MissionLoadException;
 import com.bgsoftware.superiorskyblock.api.wrappers.SuperiorPlayer;
+import com.bgsoftware.superiorskyblock.missions.common.BuiltinMission;
 import com.bgsoftware.superiorskyblock.missions.common.Placeholders;
 import com.bgsoftware.superiorskyblock.missions.common.requirements.Requirements;
 import com.bgsoftware.superiorskyblock.missions.common.tracker.RawDataTracker;
@@ -14,7 +13,6 @@ import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
-import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
 import org.bukkit.event.enchantment.EnchantItemEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
@@ -22,12 +20,10 @@ import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.EnchantmentStorageMeta;
 import org.bukkit.inventory.meta.ItemMeta;
-import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -37,20 +33,16 @@ import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public final class EnchantingMissions extends Mission<RawDataTracker> implements Listener {
+public final class EnchantingMissions extends BuiltinMission<RawDataTracker> implements Listener {
 
     private static final Pattern ENCHANTED_PATTERN = Pattern.compile("\\{enchanted_(.+?)}");
 
     private final Map<Requirements, RequiredEnchantment> requiredEnchantments = new LinkedHashMap<>();
-    private final List<Listener> registeredListeners = new LinkedList<>();
 
     private String enchantedPlaceholder, notEnchantedPlaceholder;
-    private SuperiorSkyblock plugin;
 
     @Override
-    public void load(JavaPlugin plugin, ConfigurationSection section) throws MissionLoadException {
-        this.plugin = (SuperiorSkyblock) plugin;
-
+    protected void loadConfiguration(ConfigurationSection section) throws MissionLoadException {
         ConfigurationSection requiredEnchantsSection = section.getConfigurationSection("required-enchants");
 
         if (requiredEnchantsSection == null)
@@ -75,17 +67,18 @@ public final class EnchantingMissions extends Mission<RawDataTracker> implements
             }
 
             if (!enchantments.isEmpty()) {
-                requiredEnchantments.put(new Requirements(itemTypes), new RequiredEnchantment(key, enchantments,
+                this.requiredEnchantments.put(new Requirements(itemTypes), new RequiredEnchantment(key, enchantments,
                         section.getInt("required-enchants." + key + ".amount", 1)));
             }
-
-            setClearMethod(RawDataTracker::clear);
         }
 
-        registerListener(this);
+        this.enchantedPlaceholder = section.getString("enchanted-placeholder", "Yes");
+        this.notEnchantedPlaceholder = section.getString("not-enchanted-placeholder", "No");
+    }
 
-        enchantedPlaceholder = section.getString("enchanted-placeholder", "Yes");
-        notEnchantedPlaceholder = section.getString("not-enchanted-placeholder", "No");
+    @Override
+    protected void registerListeners() {
+        registerListener(this);
 
         try {
             Class.forName("org.bukkit.event.inventory.PrepareAnvilEvent");
@@ -94,9 +87,9 @@ public final class EnchantingMissions extends Mission<RawDataTracker> implements
         }
     }
 
-    public void unload() {
-        this.registeredListeners.forEach(HandlerList::unregisterAll);
-        this.registeredListeners.clear();
+    @Override
+    protected void clearModuleData(RawDataTracker data) {
+        data.clear();
     }
 
     @Override
@@ -131,16 +124,6 @@ public final class EnchantingMissions extends Mission<RawDataTracker> implements
         }
 
         return enchants;
-    }
-
-    @Override
-    public void onComplete(SuperiorPlayer superiorPlayer) {
-        onCompleteFail(superiorPlayer);
-    }
-
-    @Override
-    public void onCompleteFail(SuperiorPlayer superiorPlayer) {
-
     }
 
     @Override
@@ -308,11 +291,6 @@ public final class EnchantingMissions extends Mission<RawDataTracker> implements
         }
 
         return Placeholders.parsePlaceholders(line, placeholdersFunctions);
-    }
-
-    private void registerListener(Listener listener) {
-        Bukkit.getPluginManager().registerEvents(listener, plugin);
-        this.registeredListeners.add(listener);
     }
 
     private static class RequiredEnchantment {

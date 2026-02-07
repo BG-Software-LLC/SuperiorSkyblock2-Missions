@@ -1,9 +1,8 @@
 package com.bgsoftware.superiorskyblock.missions;
 
-import com.bgsoftware.superiorskyblock.api.SuperiorSkyblock;
-import com.bgsoftware.superiorskyblock.api.missions.Mission;
 import com.bgsoftware.superiorskyblock.api.missions.MissionLoadException;
 import com.bgsoftware.superiorskyblock.api.wrappers.SuperiorPlayer;
+import com.bgsoftware.superiorskyblock.missions.common.BuiltinMission;
 import com.bgsoftware.superiorskyblock.missions.common.Placeholders;
 import com.bgsoftware.superiorskyblock.missions.common.requirements.Requirements;
 import org.bukkit.Bukkit;
@@ -14,12 +13,10 @@ import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
-import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerStatisticIncrementEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
-import org.bukkit.plugin.java.JavaPlugin;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
@@ -30,16 +27,12 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalInt;
 
-public final class StatisticsMissions extends Mission<Void> implements Listener {
+public final class StatisticsMissions extends BuiltinMission<Void> implements Listener {
 
     private final Map<Requirements, Integer> requiredStatistics = new LinkedHashMap<>();
 
-    private SuperiorSkyblock plugin;
-
     @Override
-    public void load(JavaPlugin plugin, ConfigurationSection section) throws MissionLoadException {
-        this.plugin = (SuperiorSkyblock) plugin;
-
+    protected void loadConfiguration(ConfigurationSection section) throws MissionLoadException {
         ConfigurationSection requiredStatisticsSection = section.getConfigurationSection("required-statistics");
 
         if (requiredStatisticsSection == null)
@@ -50,12 +43,16 @@ public final class StatisticsMissions extends Mission<Void> implements Listener 
             int requiredAmount = section.getInt("required-statistics." + key + ".amount");
             requiredStatistics.put(new Requirements(statistics), requiredAmount);
         }
-
-        Bukkit.getPluginManager().registerEvents(this, plugin);
     }
 
-    public void unload() {
-        HandlerList.unregisterAll(this);
+    @Override
+    protected void registerListeners() {
+        registerListener(this);
+    }
+
+    @Override
+    protected void clearModuleData(Void data) {
+        // Do nothing
     }
 
     @Override
@@ -131,16 +128,6 @@ public final class StatisticsMissions extends Mission<Void> implements Listener 
         }
 
         return totalItemAmount;
-    }
-
-    @Override
-    public void onComplete(SuperiorPlayer superiorPlayer) {
-        onCompleteFail(superiorPlayer);
-    }
-
-    @Override
-    public void onCompleteFail(SuperiorPlayer superiorPlayer) {
-        clearData(superiorPlayer);
     }
 
     @Override

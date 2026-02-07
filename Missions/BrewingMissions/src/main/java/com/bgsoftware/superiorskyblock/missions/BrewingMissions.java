@@ -1,9 +1,8 @@
 package com.bgsoftware.superiorskyblock.missions;
 
-import com.bgsoftware.superiorskyblock.api.SuperiorSkyblock;
-import com.bgsoftware.superiorskyblock.api.missions.Mission;
 import com.bgsoftware.superiorskyblock.api.missions.MissionLoadException;
 import com.bgsoftware.superiorskyblock.api.wrappers.SuperiorPlayer;
+import com.bgsoftware.superiorskyblock.missions.common.BuiltinMission;
 import com.bgsoftware.superiorskyblock.missions.common.Placeholders;
 import com.bgsoftware.superiorskyblock.missions.common.requirements.CustomRequirements;
 import org.bukkit.Bukkit;
@@ -17,7 +16,6 @@ import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
-import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.inventory.BrewEvent;
@@ -26,7 +24,6 @@ import org.bukkit.inventory.BrewerInventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.meta.PotionMeta;
-import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.potion.Potion;
 import org.bukkit.potion.PotionType;
 
@@ -42,20 +39,15 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Predicate;
 
-public final class BrewingMissions extends Mission<BrewingMissions.BrewingTracker> implements Listener {
+public final class BrewingMissions extends BuiltinMission<BrewingMissions.BrewingTracker> implements Listener {
 
     private static final boolean isUsing18 = Bukkit.getServer().getClass().getPackage().getName().contains("1_8");
 
     private final Map<CustomRequirements<PotionData>, Integer> requiredPotions = new LinkedHashMap<>();
     private final Map<Location, boolean[]> trackedBrewItems = new HashMap<>();
-    private boolean resetAfterFinish;
-
-    private SuperiorSkyblock plugin;
 
     @Override
-    public void load(JavaPlugin plugin, ConfigurationSection section) throws MissionLoadException {
-        this.plugin = (SuperiorSkyblock) plugin;
-
+    protected void loadConfiguration(ConfigurationSection section) throws MissionLoadException {
         ConfigurationSection requiredPotionsSection = section.getConfigurationSection("required-potions");
 
         if (requiredPotionsSection == null)
@@ -100,14 +92,16 @@ public final class BrewingMissions extends Mission<BrewingMissions.BrewingTracke
         if (requiredPotions.isEmpty()) {
             throw new MissionLoadException("There are no valid required potions for this mission.");
         }
-
-        resetAfterFinish = section.getBoolean("reset-after-finish", false);
-
-        Bukkit.getPluginManager().registerEvents(this, plugin);
     }
 
-    public void unload() {
-        HandlerList.unregisterAll(this);
+    @Override
+    protected void registerListeners() {
+        registerListener(this);
+    }
+
+    @Override
+    protected void clearModuleData(BrewingTracker data) {
+        data.brewingTracker.clear();
     }
 
     @Override
@@ -141,17 +135,6 @@ public final class BrewingMissions extends Mission<BrewingMissions.BrewingTracke
             kills += Math.min(brewingTracker.getBrews(requiredEntity.getKey()), requiredEntity.getValue());
 
         return kills;
-    }
-
-    @Override
-    public void onComplete(SuperiorPlayer superiorPlayer) {
-        if (resetAfterFinish)
-            clearData(superiorPlayer);
-    }
-
-    @Override
-    public void onCompleteFail(SuperiorPlayer superiorPlayer) {
-
     }
 
     @Override

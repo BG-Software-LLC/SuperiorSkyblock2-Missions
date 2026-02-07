@@ -1,9 +1,8 @@
 package com.bgsoftware.superiorskyblock.missions;
 
-import com.bgsoftware.superiorskyblock.api.SuperiorSkyblock;
-import com.bgsoftware.superiorskyblock.api.missions.Mission;
 import com.bgsoftware.superiorskyblock.api.missions.MissionLoadException;
 import com.bgsoftware.superiorskyblock.api.wrappers.SuperiorPlayer;
+import com.bgsoftware.superiorskyblock.missions.common.BuiltinMission;
 import com.bgsoftware.superiorskyblock.missions.common.Placeholders;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
@@ -12,14 +11,12 @@ import org.bukkit.entity.HumanEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
-import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
 import org.bukkit.inventory.meta.ItemMeta;
-import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -30,16 +27,12 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 
-public final class CraftingMissions extends Mission<CraftingMissions.CraftingsTracker> implements Listener {
+public final class CraftingMissions extends BuiltinMission<CraftingMissions.CraftingsTracker> implements Listener {
 
     private final Map<ItemStack, Integer> itemsToCraft = new LinkedHashMap<>();
 
-    private SuperiorSkyblock plugin;
-
     @Override
-    public void load(JavaPlugin plugin, ConfigurationSection section) throws MissionLoadException {
-        this.plugin = (SuperiorSkyblock) plugin;
-
+    protected void loadConfiguration(ConfigurationSection section) throws MissionLoadException {
         ConfigurationSection craftingsSection = section.getConfigurationSection("craftings");
 
         if (craftingsSection == null)
@@ -57,16 +50,18 @@ public final class CraftingMissions extends Mission<CraftingMissions.CraftingsTr
                 throw new MissionLoadException("Invalid crafting result " + type + ".");
             }
 
-            itemsToCraft.put(new ItemStack(material, 1, data), amount);
+            this.itemsToCraft.put(new ItemStack(material, 1, data), amount);
         }
-
-        Bukkit.getPluginManager().registerEvents(this, plugin);
-
-        setClearMethod(craftingsTracker -> craftingsTracker.craftedItems.clear());
     }
 
-    public void unload() {
-        HandlerList.unregisterAll(this);
+    @Override
+    protected void registerListeners() {
+        registerListener(this);
+    }
+
+    @Override
+    protected void clearModuleData(CraftingsTracker data) {
+        data.craftedItems.clear();
     }
 
     @Override
@@ -100,16 +95,6 @@ public final class CraftingMissions extends Mission<CraftingMissions.CraftingsTr
             interactions += Math.min(craftingsTracker.getCrafts(entry.getKey()), entry.getValue());
 
         return interactions;
-    }
-
-    @Override
-    public void onComplete(SuperiorPlayer superiorPlayer) {
-        onCompleteFail(superiorPlayer);
-    }
-
-    @Override
-    public void onCompleteFail(SuperiorPlayer superiorPlayer) {
-        clearData(superiorPlayer);
     }
 
     @Override

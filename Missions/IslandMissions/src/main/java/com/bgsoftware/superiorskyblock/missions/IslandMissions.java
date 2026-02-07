@@ -1,14 +1,13 @@
 package com.bgsoftware.superiorskyblock.missions;
 
-import com.bgsoftware.superiorskyblock.api.SuperiorSkyblock;
 import com.bgsoftware.superiorskyblock.api.events.IslandEvent;
 import com.bgsoftware.superiorskyblock.api.events.IslandTransferEvent;
 import com.bgsoftware.superiorskyblock.api.events.MissionCompleteEvent;
-import com.bgsoftware.superiorskyblock.api.missions.Mission;
 import com.bgsoftware.superiorskyblock.api.missions.MissionLoadException;
 import com.bgsoftware.superiorskyblock.api.scripts.IScriptEngine;
 import com.bgsoftware.superiorskyblock.api.service.placeholders.PlaceholdersService;
 import com.bgsoftware.superiorskyblock.api.wrappers.SuperiorPlayer;
+import com.bgsoftware.superiorskyblock.missions.common.BuiltinMission;
 import com.bgsoftware.superiorskyblock.missions.island.DynamicRegisteredListener;
 import com.bgsoftware.superiorskyblock.missions.island.EventsHelper;
 import com.bgsoftware.superiorskyblock.missions.island.timings.ITimings;
@@ -18,26 +17,21 @@ import org.bukkit.event.Event;
 import org.bukkit.event.EventException;
 import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
+import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.RegisteredServiceProvider;
-import org.bukkit.plugin.java.JavaPlugin;
 
 import javax.annotation.Nullable;
 import javax.script.SimpleBindings;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 
-public final class IslandMissions extends Mission<Boolean> implements Listener {
-
-    private SuperiorSkyblock plugin;
+public final class IslandMissions extends BuiltinMission<Boolean> implements Listener {
 
     private String successCheck;
     private PlaceholdersService placeholdersService;
 
-
     @Override
-    public void load(JavaPlugin plugin, ConfigurationSection section) throws MissionLoadException {
-        this.plugin = (SuperiorSkyblock) plugin;
-
+    protected void loadConfiguration(ConfigurationSection section) throws MissionLoadException {
         if (!section.contains("events"))
             throw new MissionLoadException("You must have the \"events\" section in the config.");
 
@@ -60,7 +54,7 @@ public final class IslandMissions extends Mission<Boolean> implements Listener {
             }
         }
 
-        successCheck = section.getString("success-check", "true");
+        this.successCheck = section.getString("success-check", "true");
 
         RegisteredServiceProvider<PlaceholdersService> registeredServiceProvider = plugin.getServer()
                 .getServicesManager().getRegistration(PlaceholdersService.class);
@@ -68,12 +62,16 @@ public final class IslandMissions extends Mission<Boolean> implements Listener {
         if (registeredServiceProvider != null) {
             this.placeholdersService = registeredServiceProvider.getProvider();
         }
-
-        Bukkit.getPluginManager().registerEvents(this, plugin);
     }
 
-    public void unload() {
-        HandlerList.unregisterAll(this);
+    @Override
+    protected void registerListeners() {
+        registerListener(this);
+    }
+
+    @Override
+    protected void clearModuleData(Boolean data) {
+        // Do nothing
     }
 
     @Override
@@ -86,17 +84,7 @@ public final class IslandMissions extends Mission<Boolean> implements Listener {
         return 0;
     }
 
-    @Override
-    public void onComplete(SuperiorPlayer superiorPlayer) {
-        onCompleteFail(superiorPlayer);
-    }
-
-    @Override
-    public void onCompleteFail(SuperiorPlayer superiorPlayer) {
-        clearData(superiorPlayer);
-    }
-
-    private void registerEventListener(JavaPlugin plugin, String eventName, boolean isTarget) throws Exception {
+    private void registerEventListener(Plugin plugin, String eventName, boolean isTarget) throws Exception {
         Class<?> eventClass = Class.forName("com.bgsoftware.superiorskyblock.api.events." + eventName);
 
         if (!Event.class.isAssignableFrom(eventClass))

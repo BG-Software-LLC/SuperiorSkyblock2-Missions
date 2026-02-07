@@ -1,12 +1,11 @@
 package com.bgsoftware.superiorskyblock.missions;
 
-import com.bgsoftware.superiorskyblock.api.SuperiorSkyblock;
 import com.bgsoftware.superiorskyblock.api.key.Key;
 import com.bgsoftware.superiorskyblock.api.key.KeySet;
-import com.bgsoftware.superiorskyblock.api.missions.Mission;
 import com.bgsoftware.superiorskyblock.api.missions.MissionLoadException;
 import com.bgsoftware.superiorskyblock.api.wrappers.SuperiorPlayer;
 import com.bgsoftware.superiorskyblock.missions.blocks.BlocksTracker;
+import com.bgsoftware.superiorskyblock.missions.common.BuiltinMission;
 import com.bgsoftware.superiorskyblock.missions.common.Counter;
 import com.bgsoftware.superiorskyblock.missions.common.Placeholders;
 import com.bgsoftware.superiorskyblock.missions.common.requirements.KeyRequirements;
@@ -22,7 +21,6 @@ import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
-import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockPistonExtendEvent;
@@ -30,7 +28,6 @@ import org.bukkit.event.block.BlockPistonRetractEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
-import org.bukkit.plugin.java.JavaPlugin;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
@@ -44,23 +41,17 @@ import java.util.UUID;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
-public class BlocksMissions extends Mission<KeyDataTracker> implements Listener {
+public class BlocksMissions extends BuiltinMission<KeyDataTracker> implements Listener {
 
     private final Map<KeyRequirements, Integer> requiredBlocks = new LinkedHashMap<>();
-    private final List<Listener> registeredListeners = new LinkedList<>();
 
     private boolean onlyNatural;
-    private boolean resetAfterFinish;
     private ProgressAction progressAction;
-
-    private SuperiorSkyblock plugin;
 
     private Predicate<Location> isBarrelCheck = block -> false;
 
     @Override
-    public void load(JavaPlugin plugin, ConfigurationSection section) throws MissionLoadException {
-        this.plugin = (SuperiorSkyblock) plugin;
-
+    protected void loadConfiguration(ConfigurationSection section) throws MissionLoadException {
         if (!section.contains("required-blocks"))
             throw new MissionLoadException("You must have the \"required-blocks\" section in the config.");
 
@@ -69,15 +60,18 @@ public class BlocksMissions extends Mission<KeyDataTracker> implements Listener 
             section.getStringList("required-blocks." + key + ".types").forEach(requiredBlock ->
                     blocks.add(Key.ofMaterialAndData(requiredBlock.toUpperCase(Locale.ENGLISH))));
             int requiredAmount = section.getInt("required-blocks." + key + ".amount");
-            requiredBlocks.put(new KeyRequirements(blocks), requiredAmount);
+            this.requiredBlocks.put(new KeyRequirements(blocks), requiredAmount);
         }
 
-        this.resetAfterFinish = section.getBoolean("reset-after-finish", false);
         this.onlyNatural = section.getBoolean("only-natural-blocks", false);
         this.progressAction = section.getBoolean("blocks-placement", false) ?
                 ProgressAction.PLACE : ProgressAction.BREAK;
+    }
 
+    @Override
+    protected void registerListeners() {
         registerListener(this);
+
         Bukkit.getScheduler().runTaskLater(plugin, () -> {
             if (Bukkit.getPluginManager().isPluginEnabled("WildStacker")) {
                 registerListener(new WildStackerListener());
@@ -88,13 +82,11 @@ public class BlocksMissions extends Mission<KeyDataTracker> implements Listener 
                 registerListener(new WildToolsListener());
             }
         }, 1L);
-
-        setClearMethod(KeyDataTracker::clear);
     }
 
-    public void unload() {
-        this.registeredListeners.forEach(HandlerList::unregisterAll);
-        this.registeredListeners.clear();
+    @Override
+    protected void clearModuleData(KeyDataTracker data) {
+        data.clear();
     }
 
     @Override
@@ -128,17 +120,6 @@ public class BlocksMissions extends Mission<KeyDataTracker> implements Listener 
             interactions += Math.min(blocksCounter.getCounts(requiredBlock.getKey()), requiredBlock.getValue());
 
         return interactions;
-    }
-
-    @Override
-    public void onComplete(SuperiorPlayer superiorPlayer) {
-        if (resetAfterFinish)
-            clearData(superiorPlayer);
-    }
-
-    @Override
-    public void onCompleteFail(SuperiorPlayer superiorPlayer) {
-
     }
 
     @Override
@@ -437,11 +418,6 @@ public class BlocksMissions extends Mission<KeyDataTracker> implements Listener 
         }
 
         return null;
-    }
-
-    private void registerListener(Listener listener) {
-        Bukkit.getPluginManager().registerEvents(listener, plugin);
-        this.registeredListeners.add(listener);
     }
 
     private enum ProgressAction {

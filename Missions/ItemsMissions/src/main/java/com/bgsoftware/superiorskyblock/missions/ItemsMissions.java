@@ -1,11 +1,10 @@
 package com.bgsoftware.superiorskyblock.missions;
 
-import com.bgsoftware.superiorskyblock.api.SuperiorSkyblock;
 import com.bgsoftware.superiorskyblock.api.key.Key;
 import com.bgsoftware.superiorskyblock.api.key.KeySet;
-import com.bgsoftware.superiorskyblock.api.missions.Mission;
 import com.bgsoftware.superiorskyblock.api.missions.MissionLoadException;
 import com.bgsoftware.superiorskyblock.api.wrappers.SuperiorPlayer;
+import com.bgsoftware.superiorskyblock.missions.common.BuiltinMission;
 import com.bgsoftware.superiorskyblock.missions.common.requirements.KeyRequirements;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
@@ -13,7 +12,6 @@ import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
-import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.InventoryClickEvent;
@@ -22,7 +20,6 @@ import org.bukkit.event.player.PlayerPickupItemEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
-import org.bukkit.plugin.java.JavaPlugin;
 
 import javax.annotation.Nullable;
 import java.util.Arrays;
@@ -36,16 +33,12 @@ import java.util.Objects;
 import java.util.Set;
 
 @SuppressWarnings("unused")
-public final class ItemsMissions extends Mission<ItemsMissions.ItemsTracker> implements Listener {
+public final class ItemsMissions extends BuiltinMission<ItemsMissions.ItemsTracker> implements Listener {
 
     private final Map<KeyRequirements, Integer> requiredItems = new LinkedHashMap<>();
 
-    private SuperiorSkyblock plugin;
-
     @Override
-    public void load(JavaPlugin plugin, ConfigurationSection section) throws MissionLoadException {
-        this.plugin = (SuperiorSkyblock) plugin;
-
+    protected void loadConfiguration(ConfigurationSection section) throws MissionLoadException {
         ConfigurationSection requiredItemsSection = section.getConfigurationSection("required-items");
 
         if (requiredItemsSection == null)
@@ -58,15 +51,16 @@ public final class ItemsMissions extends Mission<ItemsMissions.ItemsTracker> imp
             int requiredAmount = section.getInt("required-items." + key + ".amount");
             requiredItems.put(new KeyRequirements(itemStacks), requiredAmount);
         }
-
-        Bukkit.getPluginManager().registerEvents(this, plugin);
-
-        setClearMethod(itemsTracker -> itemsTracker.itemsTracker.clear());
     }
 
+    @Override
+    protected void registerListeners() {
+        registerListener(this);
+    }
 
-    public void unload() {
-        HandlerList.unregisterAll(this);
+    @Override
+    protected void clearModuleData(ItemsTracker data) {
+        data.itemsTracker.clear();
     }
 
     @Override
@@ -173,7 +167,6 @@ public final class ItemsMissions extends Mission<ItemsMissions.ItemsTracker> imp
 
     @Override
     public void onComplete(SuperiorPlayer superiorPlayer) {
-        clearData(superiorPlayer);
         getProgress(superiorPlayer);
         ItemsTracker itemsTracker = get(superiorPlayer);
 
@@ -184,13 +177,6 @@ public final class ItemsMissions extends Mission<ItemsMissions.ItemsTracker> imp
         assert player != null;
 
         removeItems(player.getInventory(), itemsTracker.getItems().toArray(new ItemStack[0]));
-
-        onCompleteFail(superiorPlayer);
-    }
-
-    @Override
-    public void onCompleteFail(SuperiorPlayer superiorPlayer) {
-        clearData(superiorPlayer);
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)

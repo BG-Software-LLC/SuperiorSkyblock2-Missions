@@ -1,12 +1,11 @@
 package com.bgsoftware.superiorskyblock.missions;
 
-import com.bgsoftware.superiorskyblock.api.SuperiorSkyblock;
 import com.bgsoftware.superiorskyblock.api.island.Island;
 import com.bgsoftware.superiorskyblock.api.key.Key;
 import com.bgsoftware.superiorskyblock.api.key.KeySet;
-import com.bgsoftware.superiorskyblock.api.missions.Mission;
 import com.bgsoftware.superiorskyblock.api.missions.MissionLoadException;
 import com.bgsoftware.superiorskyblock.api.wrappers.SuperiorPlayer;
+import com.bgsoftware.superiorskyblock.missions.common.BuiltinMission;
 import com.bgsoftware.superiorskyblock.missions.common.Placeholders;
 import com.bgsoftware.superiorskyblock.missions.common.requirements.KeyRequirements;
 import com.bgsoftware.superiorskyblock.missions.common.tracker.KeyDataTracker;
@@ -24,7 +23,6 @@ import org.bukkit.block.data.BlockData;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
-import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockGrowEvent;
@@ -36,7 +34,6 @@ import org.bukkit.event.entity.EntityExplodeEvent;
 import org.bukkit.event.world.StructureGrowEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
-import org.bukkit.plugin.java.JavaPlugin;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
@@ -48,7 +45,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 
-public final class FarmingMissions extends Mission<KeyDataTracker> implements Listener {
+public final class FarmingMissions extends BuiltinMission<KeyDataTracker> implements Listener {
 
     private static final BlockFace[] STEM_NEARBY_BLOCKS = new BlockFace[]{
             BlockFace.EAST, BlockFace.WEST, BlockFace.NORTH, BlockFace.SOUTH
@@ -58,14 +55,9 @@ public final class FarmingMissions extends Mission<KeyDataTracker> implements Li
     };
 
     private final Map<KeyRequirements, Integer> requiredPlants = new LinkedHashMap<>();
-    private boolean resetAfterFinish;
-
-    private SuperiorSkyblock plugin;
 
     @Override
-    public void load(JavaPlugin plugin, ConfigurationSection section) throws MissionLoadException {
-        this.plugin = (SuperiorSkyblock) plugin;
-
+    protected void loadConfiguration(ConfigurationSection section) throws MissionLoadException {
         ConfigurationSection requiredPlantsSection = section.getConfigurationSection("required-plants");
 
         if (requiredPlantsSection == null)
@@ -78,14 +70,16 @@ public final class FarmingMissions extends Mission<KeyDataTracker> implements Li
             int requiredAmount = section.getInt("required-plants." + key + ".amount");
             this.requiredPlants.put(new KeyRequirements(requiredPlants), requiredAmount);
         }
-
-        resetAfterFinish = section.getBoolean("reset-after-finish", false);
-
-        Bukkit.getPluginManager().registerEvents(this, plugin);
     }
 
-    public void unload() {
-        HandlerList.unregisterAll(this);
+    @Override
+    protected void registerListeners() {
+        registerListener(this);
+    }
+
+    @Override
+    protected void clearModuleData(KeyDataTracker data) {
+        data.clear();
     }
 
     @Override
@@ -119,17 +113,6 @@ public final class FarmingMissions extends Mission<KeyDataTracker> implements Li
             kills += Math.min(farmingTracker.getCounts(requiredPlant.getKey()), requiredPlant.getValue());
 
         return kills;
-    }
-
-    @Override
-    public void onComplete(SuperiorPlayer superiorPlayer) {
-        if (resetAfterFinish)
-            clearData(superiorPlayer);
-    }
-
-    @Override
-    public void onCompleteFail(SuperiorPlayer superiorPlayer) {
-
     }
 
     @Override
